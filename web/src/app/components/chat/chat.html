@@ -1,0 +1,183 @@
+<div class="relative flex h-full flex-col">
+  <!-- En-tête -->
+  <header class="flex items-center justify-between border-b border-slate-200 bg-white/80 px-6 py-3 backdrop-blur">
+    <div>
+      <h2 class="text-sm font-semibold text-slate-800">Conversation</h2>
+      <p class="text-xs text-slate-500">
+        {{ api.documents().length }} document{{ api.documents().length > 1 ? 's' : '' }} indexé{{ api.documents().length > 1 ? 's' : '' }}
+      </p>
+    </div>
+    @if (messages().length > 0) {
+      <button class="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-500 hover:bg-slate-100" (click)="clear()">
+        Nouvelle conversation
+      </button>
+    }
+  </header>
+
+  <!-- Fil de messages -->
+  <div #scroller class="min-h-0 flex-1 overflow-y-auto px-6 py-6">
+    <div class="mx-auto flex max-w-3xl flex-col gap-5">
+      @if (messages().length === 0) {
+        <div class="mt-16 text-center">
+          <div class="mx-auto mb-4 flex size-12 items-center justify-center rounded-2xl bg-indigo-100">
+            <svg class="size-6 text-indigo-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8m-8 4h5m-9 6l3-3h10a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v13z" />
+            </svg>
+          </div>
+          @if (api.documents().length === 0) {
+            <h3 class="text-base font-semibold text-slate-800">Commencez par ajouter un document</h3>
+            <p class="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+              Déposez un PDF dans le panneau de gauche, puis posez vos questions : les réponses citeront les passages exacts.
+            </p>
+          } @else {
+            <h3 class="text-base font-semibold text-slate-800">Posez une question sur vos documents</h3>
+            <div class="mt-4 flex flex-wrap justify-center gap-2">
+              @for (s of suggestions; track s) {
+                <button
+                  class="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-600 shadow-sm hover:border-indigo-300 hover:text-indigo-700"
+                  (click)="send(s)"
+                >
+                  {{ s }}
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+
+      @for (message of messages(); track $index) {
+        @if (message.role === 'user') {
+          <div class="flex justify-end">
+            <div class="max-w-[85%] rounded-2xl rounded-br-md bg-indigo-600 px-4 py-2.5 text-sm whitespace-pre-wrap text-white shadow-sm">
+              {{ message.content }}
+            </div>
+          </div>
+        } @else {
+          <div class="flex justify-start">
+            <div class="max-w-[92%] min-w-0">
+              <div
+                class="rounded-2xl rounded-bl-md border border-slate-200 bg-white px-4 py-3 text-sm leading-relaxed text-slate-800 shadow-sm"
+              >
+                @if (message.content) {
+                  <!-- Segments are kept tight against their tags: the container is
+                       pre-wrap, so any stray template whitespace would show up. -->
+                  <span class="whitespace-pre-wrap">@for (segment of segments(message); track $index) {
+                      @switch (segment.kind) {
+                        @case ('bold') {<strong>{{ segment.text }}</strong>}
+                        @case ('cite') {<button
+                            type="button"
+                            class="cite"
+                            [title]="'Voir la source ' + segment.index"
+                            (click)="openCitation(message, segment.index)"
+                          >{{ segment.index }}</button>}
+                        @case ('text') {<span>{{ segment.text }}</span>}
+                      }
+                    }</span>
+                } @else if (message.streaming) {
+                  <span class="inline-flex items-center gap-1.5 text-slate-400">
+                    <span class="size-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:0ms]"></span>
+                    <span class="size-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:150ms]"></span>
+                    <span class="size-1.5 animate-bounce rounded-full bg-slate-400 [animation-delay:300ms]"></span>
+                  </span>
+                }
+                @if (message.streaming && message.content) {
+                  <span class="ml-0.5 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-indigo-400 align-text-bottom"></span>
+                }
+                @if (message.error) {
+                  <div class="mt-2 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">{{ message.error }}</div>
+                }
+              </div>
+
+              @if (citedSources(message).length > 0 && !message.streaming) {
+                <div class="mt-2 flex flex-wrap gap-1.5">
+                  @for (source of citedSources(message); track source.index) {
+                    <button
+                      class="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] text-slate-600 hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700"
+                      (click)="activeSource.set(source)"
+                    >
+                      <span class="font-semibold">[{{ source.index }}]</span>
+                      <span class="max-w-40 truncate">{{ source.docName }}</span>
+                      <span class="text-slate-400">p.{{ source.page }}</span>
+                    </button>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+      }
+    </div>
+  </div>
+
+  <!-- Saisie -->
+  <div class="border-t border-slate-200 bg-white px-6 py-4">
+    <div class="mx-auto flex max-w-3xl items-end gap-2">
+      <textarea
+        class="max-h-40 min-h-[44px] flex-1 resize-none rounded-xl border border-slate-300 px-4 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 focus:outline-none"
+        rows="1"
+        placeholder="Posez votre question…"
+        [(ngModel)]="draft"
+        (keydown)="onKeydown($event)"
+        [disabled]="busy()"
+      ></textarea>
+      @if (busy()) {
+        <button
+          class="flex h-11 items-center gap-1.5 rounded-xl border border-slate-300 px-4 text-sm font-medium text-slate-600 hover:bg-slate-50"
+          (click)="stop()"
+        >
+          <span class="size-2.5 rounded-sm bg-slate-500"></span>
+          Stop
+        </button>
+      } @else {
+        <button
+          class="flex h-11 items-center rounded-xl bg-indigo-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+          [disabled]="!draft.trim() || api.documents().length === 0"
+          (click)="send()"
+        >
+          Envoyer
+        </button>
+      }
+    </div>
+  </div>
+
+  <!-- Panneau source -->
+  @if (activeSource(); as source) {
+    <div class="absolute inset-0 z-10 flex justify-end bg-slate-900/20" (click)="activeSource.set(null)">
+      <aside
+        class="flex h-full w-full max-w-md flex-col border-l border-slate-200 bg-white shadow-xl"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="flex items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+          <div class="min-w-0">
+            <p class="text-xs font-semibold text-indigo-600">Source [{{ source.index }}]</p>
+            <h3 class="truncate text-sm font-semibold text-slate-800">{{ source.docName }}</h3>
+            <p class="text-xs text-slate-500">Page {{ source.page }}</p>
+            @if (source.section) {
+              <p class="mt-1 text-xs leading-snug text-slate-400">{{ source.section }}</p>
+            }
+          </div>
+          <button class="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600" (click)="activeSource.set(null)">
+            <svg class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </button>
+        </div>
+        <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          <p class="text-sm leading-relaxed whitespace-pre-wrap text-slate-700">{{ source.snippet }}</p>
+        </div>
+        <div class="border-t border-slate-200 px-5 py-4">
+          <a
+            [href]="sourceUrl(source)"
+            target="_blank"
+            class="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            Ouvrir le PDF à la page {{ source.page }}
+            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14 5h5v5m0-5L10 14M19 14v4a2 2 0 01-2 2H7a2 2 0 01-2-2V8a2 2 0 012-2h4" />
+            </svg>
+          </a>
+        </div>
+      </aside>
+    </div>
+  }
+</div>

@@ -1,17 +1,38 @@
 import { HttpClient } from '@angular/common/http';
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { DocumentMeta } from './models';
+import { DocumentMeta, Health } from './models';
+
+const POLL_MS = 1500;
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
+  private pollTimer: ReturnType<typeof setTimeout> | undefined;
 
   /** Shared document list (sidebar writes, chat reads for the empty state). */
   readonly documents = signal<DocumentMeta[]>([]);
+  readonly readyCount = computed(() => this.documents().filter((d) => d.status === 'ready').length);
+  /** Read-only public showcase: upload and delete are hidden. */
+  readonly demoMode = signal(false);
+
+  async loadHealth(): Promise<void> {
+    const health = await firstValueFrom(this.http.get<Health>('/api/health'));
+    this.demoMode.set(health.demoMode);
+  }
 
   async refreshDocuments(): Promise<void> {
     this.documents.set(await firstValueFrom(this.http.get<DocumentMeta[]>('/api/documents')));
+    this.schedulePoll();
+  }
+
+  /** Indexing runs server-side after the upload returns; poll until no document is processing. */
+  private schedulePoll(): void {
+    if (this.pollTimer || !this.documents().some((d) => d.status === 'processing')) return;
+    this.pollTimer = setTimeout(() => {
+      this.pollTimer = undefined;
+      this.refreshDocuments().catch(() => this.schedulePoll());
+    }, POLL_MS);
   }
 
   async uploadDocument(file: File): Promise<DocumentMeta> {

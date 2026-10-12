@@ -5,7 +5,10 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "test:llm": "tsx --test test/llm/*.test.ts"
   },
   "keywords": [],
   "author": "",
@@ -14,7 +17,10 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.124.0",
     "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.2",
     "@fastify/multipart": "^10.1.0",
+    "@fastify/rate-limit": "^11.2.1",
+    "@fastify/static": "^10.1.6",
     "@huggingface/transformers": "^4.2.0",
     "@qdrant/js-client-rest": "^1.19.0",
     "dotenv": "^17.4.2",

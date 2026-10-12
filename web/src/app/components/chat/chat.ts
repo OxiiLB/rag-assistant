@@ -22,9 +22,9 @@ export class Chat {
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
 
   protected readonly suggestions = [
-    'Fais-moi un résumé de ce document.',
-    'Quels sont les points clés à retenir ?',
-    'Que dit le document au sujet de… ?',
+    'Summarize this document for me.',
+    'What are the key takeaways?',
+    'What does the document say about…?',
   ];
 
   protected async send(text?: string): Promise<void> {
@@ -65,7 +65,7 @@ export class Chat {
       }
     } catch (err: unknown) {
       if ((err as Error)?.name !== 'AbortError') {
-        this.patchLast((m) => ({ ...m, error: 'Connexion au serveur impossible.', streaming: false }));
+        this.patchLast((m) => ({ ...m, error: 'Could not reach the server.', streaming: false }));
       }
     } finally {
       this.patchLast((m) => ({ ...m, streaming: false }));
@@ -114,10 +114,14 @@ export class Chat {
       if (match.index > cursor) {
         segments.push({ kind: 'text', text: message.content.slice(cursor, match.index) });
       }
+      const index = Number(match[2]);
       if (match[1] !== undefined) {
         segments.push({ kind: 'bold', text: match[1] });
+      } else if (message.sources?.some((s) => s.index === index)) {
+        segments.push({ kind: 'cite', index });
       } else {
-        segments.push({ kind: 'cite', index: Number(match[2]) });
+        // A marker with no matching source (e.g. one a document tried to forge) stays plain text.
+        segments.push({ kind: 'text', text: match[0] });
       }
       cursor = match.index + match[0].length;
     }

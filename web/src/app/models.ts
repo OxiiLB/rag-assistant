@@ -5,6 +5,15 @@ export interface DocumentMeta {
   pages: number;
   chunkCount: number;
   uploadedAt: string;
+  status: 'processing' | 'ready' | 'failed';
+  /** 0–1 while processing. */
+  progress?: number;
+  error?: string;
+}
+
+export interface Health {
+  embeddingReady: boolean;
+  demoMode: boolean;
 }
 
 export interface ChatTurn {

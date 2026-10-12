@@ -3,6 +3,7 @@ import path from 'node:path';
 import { QdrantClient } from '@qdrant/js-client-rest';
 import { config } from '../config.ts';
 import type { Chunk, SearchHit } from '../types.ts';
+import { writeFileAtomic } from './atomic-write.ts';
 
 export interface VectorStore {
   upsert(chunks: Chunk[], vectors: number[][]): Promise<void>;
@@ -52,8 +53,7 @@ class LocalVectorStore implements VectorStore {
   }
 
   private save(): void {
-    fs.mkdirSync(config.dataDir, { recursive: true });
-    fs.writeFileSync(this.file, JSON.stringify(this.points));
+    writeFileAtomic(this.file, JSON.stringify(this.points));
     this.revision++;
   }
 }

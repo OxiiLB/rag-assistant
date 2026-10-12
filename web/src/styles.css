@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 
-/* Puces de citation [n] injectées via innerHTML (hors portée des styles de composant) */
+/* Citation chips [n]: global so they style the buttons rendered inside answer text */
 .cite {
   display: inline-flex;
   align-items: center;

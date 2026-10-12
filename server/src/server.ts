@@ -1,25 +1,16 @@
 import 'dotenv/config';
-import cors from '@fastify/cors';
-import multipart from '@fastify/multipart';
-import Fastify from 'fastify';
+import { buildApp } from './app.ts';
 import { config } from './config.ts';
-import { chatRoutes } from './routes/chat.ts';
-import { documentRoutes } from './routes/documents.ts';
 import { warmup } from './services/embeddings.ts';
+import { enqueue } from './services/ingest.ts';
+import { listDocuments } from './services/registry.ts';
 
-const app = Fastify({ logger: true });
+const app = await buildApp();
 
-await app.register(cors, { origin: true });
-await app.register(multipart, { limits: { fileSize: config.maxUploadBytes, files: 1 } });
-
-app.get('/api/health', async () => ({
-  ok: true,
-  model: config.model,
-  vectorStore: config.qdrantUrl ? 'qdrant' : 'local',
-}));
-
-documentRoutes(app);
-chatRoutes(app);
+// Uploads interrupted by a restart resume from their saved PDF (ingestion is idempotent).
+for (const doc of listDocuments()) {
+  if (doc.status === 'processing') enqueue(doc.id, app.log);
+}
 
 await app.listen({ port: config.port, host: '0.0.0.0' });
 
@@ -27,3 +18,11 @@ await app.listen({ port: config.port, host: '0.0.0.0' });
 warmup()
   .then(() => app.log.info('embedding model ready'))
   .catch((err) => app.log.error(err, 'embedding warmup failed'));
+
+for (const signal of ['SIGINT', 'SIGTERM'] as const) {
+  process.once(signal, () => {
+    app.log.info({ signal }, 'shutting down');
+    // An unfinished ingest job is left in "processing" and resumes on next start.
+    app.close().finally(() => process.exit(0));
+  });
+}

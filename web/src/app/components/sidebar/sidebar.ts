@@ -17,21 +17,23 @@ export class Sidebar {
   protected readonly deleting = signal<string | null>(null);
 
   constructor() {
-    this.api.refreshDocuments().catch(() => this.error.set('Serveur injoignable. Lancez `npm run dev` dans server/.'));
+    const unreachable = () => this.error.set('Server unreachable. Run `npm run dev` in server/.');
+    this.api.refreshDocuments().catch(unreachable);
+    this.api.loadHealth().catch(unreachable);
   }
 
   protected onFileInput(event: Event): void {
     const input = event.target as HTMLInputElement;
-    const file = input.files?.[0];
+    const files = [...(input.files ?? [])];
     input.value = '';
-    if (file) void this.upload(file);
+    void this.uploadAll(files);
   }
 
   protected onDrop(event: DragEvent): void {
     event.preventDefault();
     this.dragOver.set(false);
-    const file = event.dataTransfer?.files?.[0];
-    if (file) void this.upload(file);
+    if (this.api.demoMode()) return;
+    void this.uploadAll([...(event.dataTransfer?.files ?? [])]);
   }
 
   protected onDragOver(event: DragEvent): void {
@@ -39,30 +41,39 @@ export class Sidebar {
     this.dragOver.set(true);
   }
 
-  private async upload(file: File): Promise<void> {
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      this.error.set('Seuls les fichiers PDF sont acceptés.');
-      return;
-    }
+  /** Sends files one by one; indexing itself continues server-side and shows up as document status. */
+  private async uploadAll(files: File[]): Promise<void> {
+    if (files.length === 0) return;
+    const errors: string[] = [];
     this.error.set(null);
-    this.uploading.set(file.name);
-    try {
-      await this.api.uploadDocument(file);
-    } catch (err: unknown) {
-      const message = (err as { error?: { error?: string } })?.error?.error;
-      this.error.set(message ?? `Échec de l'indexation de « ${file.name} ».`);
-    } finally {
-      this.uploading.set(null);
+    for (const file of files) {
+      if (!file.name.toLowerCase().endsWith('.pdf')) {
+        errors.push(`"${file.name}": only PDF files are accepted.`);
+        continue;
+      }
+      this.uploading.set(file.name);
+      try {
+        await this.api.uploadDocument(file);
+      } catch (err: unknown) {
+        const message = (err as { error?: { error?: string } })?.error?.error;
+        errors.push(`"${file.name}": ${message ?? 'upload failed.'}`);
+      }
     }
+    this.uploading.set(null);
+    this.error.set(errors.length ? errors.join('\n') : null);
+  }
+
+  protected percent(doc: DocumentMeta): number {
+    return Math.round((doc.progress ?? 0) * 100);
   }
 
   protected async remove(doc: DocumentMeta): Promise<void> {
-    if (!confirm(`Supprimer « ${doc.name} » et son index ?`)) return;
+    if (!confirm(`Delete "${doc.name}" and its index?`)) return;
     this.deleting.set(doc.id);
     try {
       await this.api.deleteDocument(doc.id);
     } catch {
-      this.error.set('La suppression a échoué.');
+      this.error.set('Deletion failed.');
     } finally {
       this.deleting.set(null);
     }
@@ -73,6 +84,6 @@ export class Sidebar {
   }
 
   protected formatSize(bytes: number): string {
-    return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} Ko` : `${(bytes / 1024 / 1024).toFixed(1)} Mo`;
+    return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
   }
 }

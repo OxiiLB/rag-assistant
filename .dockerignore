@@ -1,0 +1,9 @@
+**/node_modules
+**/dist
+**/.angular
+**/.env
+server/data
+qdrant_storage
+.git
+.github
+*.pdf

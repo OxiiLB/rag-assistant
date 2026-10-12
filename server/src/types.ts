@@ -1,10 +1,20 @@
+export type DocumentStatus = 'processing' | 'ready' | 'failed';
+
 export interface DocumentMeta {
   id: string;
   name: string;
   sizeBytes: number;
+  /** 0 until indexing completes. */
   pages: number;
   chunkCount: number;
   uploadedAt: string;
+  status: DocumentStatus;
+  /** Share of chunks embedded so far (0–1), while processing. */
+  progress?: number | undefined;
+  /** User-facing reason, when failed. */
+  error?: string | undefined;
+  /** SHA-256 of the PDF, to refuse indexing the same file twice. */
+  hash: string;
 }
 
 export interface Chunk {

@@ -5,8 +5,32 @@ import type { PdfPage } from './pdf.ts';
 const TARGET_SIZE = 1000;
 const OVERLAP = 150;
 
-/** A line opening with one or more ALL-CAPS words: "MUST — ...", "PRÉLIMINAIRES ...". */
-const HEADING = /^[A-ZÀ-Þ][A-ZÀ-Þ0-9'’·-]{2,}(?:\s+[A-ZÀ-Þ][A-ZÀ-Þ0-9'’·-]{2,}){0,3}\b/;
+/** ALL-CAPS heading: "MUST — ...", "PRÉLIMINAIRES ...". */
+const HEADING_CAPS = /^[A-ZÀ-Þ][A-ZÀ-Þ0-9'’·-]{2,}(?:\s+[A-ZÀ-Þ][A-ZÀ-Þ0-9'’·-]{2,}){0,3}\b/;
+
+/** Numbered or lettered heading: "1.2 Configuration", "3) Setup", "III. Scope". */
+const HEADING_NUMBERED = /^(?:\d+(?:\.\d+)*[.)]?|[A-Z][.)]|[IVXLCDM]+[.)])\s+\S/;
+
+/**
+ * Short Title-Case line with no trailing punctuation: "Getting Started",
+ * "API Reference". Lowercase connectors up to 3 letters ("of", "and", "les")
+ * are tolerated so real titles with articles/prepositions still match.
+ */
+const HEADING_TITLE_CASE =
+  /^[A-ZÀ-Þ][\p{L}0-9'’-]*(?:\s+(?:[A-ZÀ-Þ][\p{L}0-9'’-]*|[a-zà-ÿ]{1,3}))*$/u;
+
+const MAX_HEADING_LENGTH = 80;
+
+/**
+ * PDF text extraction drops font/bold info, so headings can only be guessed
+ * from how the line looks: all-caps, numbered/lettered, or a short Title-Case
+ * line that isn't mid-sentence (no trailing ",", ";" or ":").
+ */
+function isHeading(line: string): boolean {
+  if (!line || line.length > MAX_HEADING_LENGTH) return false;
+  if (/[.,;:]$/.test(line)) return false;
+  return HEADING_CAPS.test(line) || HEADING_NUMBERED.test(line) || HEADING_TITLE_CASE.test(line);
+}
 
 /**
  * Splits page text into ~1000-char chunks, preferring paragraph then sentence
@@ -102,8 +126,8 @@ function findHeadings(text: string): Heading[] {
   const headings: Heading[] = [];
   let offset = 0;
   for (const line of text.split('\n')) {
-    const match = line.trim().match(HEADING);
-    if (match) headings.push({ offset, title: line.trim().slice(0, 80) });
+    const trimmed = line.trim();
+    if (isHeading(trimmed)) headings.push({ offset, title: trimmed.slice(0, 80) });
     offset += line.length + 1;
   }
   return headings;
@@ -120,7 +144,7 @@ function pageTitle(text: string, headings: Heading[]): string | undefined {
     .slice(first.offset + first.title.length)
     .split('\n')
     .map((l) => l.trim())
-    .find((l) => l.length > 0 && !HEADING.test(l));
+    .find((l) => l.length > 0 && !isHeading(l));
   return after ? `${first.title} — ${after.slice(0, 80)}` : first.title;
 }
 

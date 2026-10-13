@@ -6,14 +6,14 @@
       </svg>
     </div>
     <div>
-      <h1 class="text-lg leading-tight font-bold text-ink">RAG Assistant</h1>
-      <p class="text-xs text-ink-muted">Query your documents, get cited answers.</p>
+      <h1 class="text-lg leading-tight font-bold text-ink">{{ i18n.t('app.title') }}</h1>
+      <p class="text-xs text-ink-muted">{{ i18n.t('app.tagline') }}</p>
     </div>
   </div>
 
   @if (api.demoMode()) {
     <div class="rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-xs leading-relaxed text-ink-muted">
-      <span class="font-semibold text-accent">Demo mode</span> — preloaded read-only corpus. Ask your questions in the conversation.
+      <span class="font-semibold text-accent">{{ i18n.t('sidebar.demoTitle') }}</span> — {{ i18n.t('sidebar.demoBody') }}
     </div>
   } @else {
   <!-- Upload zone -->
@@ -39,14 +39,14 @@
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
       </svg>
-      <span class="text-sm font-medium text-ink">Uploading…</span>
+      <span class="text-sm font-medium text-ink">{{ i18n.t('sidebar.uploading') }}</span>
       <span class="max-w-full truncate text-xs text-ink-muted">{{ name }}</span>
     } @else {
       <svg class="size-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
       </svg>
-      <span class="text-sm font-medium text-ink">Add PDFs</span>
-      <span class="text-xs text-ink-muted">Click or drag and drop</span>
+      <span class="text-sm font-medium text-ink">{{ i18n.t('sidebar.addPdfs') }}</span>
+      <span class="text-xs text-ink-muted">{{ i18n.t('sidebar.dropHint') }}</span>
     }
   </label>
   }
@@ -58,10 +58,10 @@
   <!-- Document list -->
   <div class="min-h-0 flex-1 overflow-y-auto">
     <h2 class="mb-2 text-xs font-semibold tracking-wide text-ink-subtle uppercase">
-      Documents ({{ api.documents().length }})
+      {{ i18n.t('sidebar.documents') }} ({{ api.documents().length }})
     </h2>
     @if (api.documents().length === 0 && !uploading()) {
-      <p class="text-xs text-ink-subtle">No documents indexed yet.</p>
+      <p class="text-xs text-ink-subtle">{{ i18n.t('sidebar.empty') }}</p>
     }
     <ul class="space-y-2">
       @for (doc of api.documents(); track doc.id) {
@@ -71,14 +71,14 @@
               [href]="fileUrl(doc)"
               target="_blank"
               class="min-w-0 text-sm font-medium break-words text-ink hover:text-accent"
-              title="Open the PDF"
+              [title]="i18n.t('sidebar.openPdf')"
               >{{ doc.name }}</a
             >
             @if (!api.demoMode()) {
               <button
                 class="shrink-0 rounded p-1 text-ink-subtle transition-opacity group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
                 [class.opacity-0]="doc.status !== 'failed'"
-                [title]="doc.status === 'failed' ? 'Delete (then upload the file again to retry)' : 'Delete'"
+                [title]="i18n.t(doc.status === 'failed' ? 'sidebar.deleteFailed' : 'sidebar.delete')"
                 [disabled]="deleting() === doc.id"
                 (click)="remove(doc)"
               >
@@ -92,7 +92,7 @@
             @case ('processing') {
               <div class="mt-2">
                 <div class="flex justify-between text-xs text-accent">
-                  <span>Indexing…</span>
+                  <span>{{ i18n.t('sidebar.indexing') }}</span>
                   <span>{{ percent(doc) }}%</span>
                 </div>
                 <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-night-700">
@@ -101,12 +101,12 @@
               </div>
             }
             @case ('failed') {
-              <p class="mt-1 text-xs text-red-400">{{ doc.error ?? 'Indexing failed.' }}</p>
+              <p class="mt-1 text-xs text-red-400">{{ i18n.error(doc.errorCode, doc.errorParams, doc.error ?? i18n.t('sidebar.indexFailed')) }}</p>
             }
             @default {
               <p class="mt-1 text-xs text-ink-muted">
-                {{ doc.pages }} page{{ doc.pages === 1 ? '' : 's' }} · {{ doc.chunkCount }} passages ·
-                {{ formatSize(doc.sizeBytes) }} · {{ doc.uploadedAt | date: 'mediumDate' }}
+                {{ i18n.t('sidebar.pages', { n: doc.pages }) }} · {{ i18n.t('sidebar.passages', { n: doc.chunkCount }) }} ·
+                {{ formatSize(doc.sizeBytes) }} · {{ doc.uploadedAt | date: 'mediumDate' : undefined : i18n.lang() }}
               </p>
             }
           }

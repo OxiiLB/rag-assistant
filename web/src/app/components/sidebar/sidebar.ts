@@ -1,6 +1,7 @@
 import { Component, inject, signal } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ApiService } from '../../api.service';
+import { I18n } from '../../i18n';
 import { DocumentMeta } from '../../models';
 
 @Component({
@@ -10,6 +11,7 @@ import { DocumentMeta } from '../../models';
 })
 export class Sidebar {
   protected readonly api = inject(ApiService);
+  protected readonly i18n = inject(I18n);
 
   protected readonly uploading = signal<string | null>(null);
   protected readonly dragOver = signal(false);
@@ -17,7 +19,7 @@ export class Sidebar {
   protected readonly deleting = signal<string | null>(null);
 
   constructor() {
-    const unreachable = () => this.error.set('Server unreachable. Run `npm run dev` in server/.');
+    const unreachable = () => this.error.set(this.i18n.t('sidebar.unreachable'));
     this.api.refreshDocuments().catch(unreachable);
     this.api.loadHealth().catch(unreachable);
   }
@@ -48,15 +50,17 @@ export class Sidebar {
     this.error.set(null);
     for (const file of files) {
       if (!file.name.toLowerCase().endsWith('.pdf')) {
-        errors.push(`"${file.name}": only PDF files are accepted.`);
+        errors.push(this.i18n.t('sidebar.onlyPdf', { name: file.name }));
         continue;
       }
       this.uploading.set(file.name);
       try {
         await this.api.uploadDocument(file);
       } catch (err: unknown) {
-        const message = (err as { error?: { error?: string } })?.error?.error;
-        errors.push(`"${file.name}": ${message ?? 'upload failed.'}`);
+        const body = (err as { error?: { error?: string; code?: string; params?: Record<string, string | number> } })
+          ?.error;
+        const message = this.i18n.error(body?.code, body?.params, body?.error ?? this.i18n.t('sidebar.uploadFailed'));
+        errors.push(`"${file.name}": ${message}`);
       }
     }
     this.uploading.set(null);
@@ -68,12 +72,12 @@ export class Sidebar {
   }
 
   protected async remove(doc: DocumentMeta): Promise<void> {
-    if (!confirm(`Delete "${doc.name}" and its index?`)) return;
+    if (!confirm(this.i18n.t('sidebar.confirmDelete', { name: doc.name }))) return;
     this.deleting.set(doc.id);
     try {
       await this.api.deleteDocument(doc.id);
     } catch {
-      this.error.set('Deletion failed.');
+      this.error.set(this.i18n.t('sidebar.deletionFailed'));
     } finally {
       this.deleting.set(null);
     }
@@ -84,6 +88,9 @@ export class Sidebar {
   }
 
   protected formatSize(bytes: number): string {
-    return bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+    const fr = this.i18n.lang() === 'fr';
+    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} ${fr ? 'Ko' : 'KB'}`;
+    const mb = (bytes / 1024 / 1024).toLocaleString(this.i18n.lang(), { maximumFractionDigits: 1 });
+    return `${mb} ${fr ? 'Mo' : 'MB'}`;
   }
 }

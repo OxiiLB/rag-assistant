@@ -1,3 +1,8 @@
+/** Languages the web UI is available in. */
+export type Lang = 'en' | 'fr';
+
+export type Suggestions = Record<Lang, string[]>;
+
 export type DocumentStatus = 'processing' | 'ready' | 'failed';
 
 export interface DocumentMeta {
@@ -13,8 +18,11 @@ export interface DocumentMeta {
   progress?: number | undefined;
   /** User-facing reason, when failed. */
   error?: string | undefined;
-  /** Document-specific starter questions shown in the chat's empty state. */
-  suggestions?: string[] | undefined;
+  /** Stable key for `error`, translated by the web app. */
+  errorCode?: string | undefined;
+  errorParams?: Record<string, string | number> | undefined;
+  /** Document-specific starter questions shown in the chat's empty state, per UI language. */
+  suggestions?: Suggestions | undefined;
   /** SHA-256 of the PDF, to refuse indexing the same file twice. */
   hash: string;
 }

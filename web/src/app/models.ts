@@ -9,8 +9,11 @@ export interface DocumentMeta {
   /** 0–1 while processing. */
   progress?: number;
   error?: string;
-  /** Starter questions generated from the document at indexing time. */
-  suggestions?: string[];
+  /** Translatable key for `error` (see I18n.error). */
+  errorCode?: string;
+  errorParams?: Record<string, string | number>;
+  /** Starter questions generated from the document at indexing time, per UI language. */
+  suggestions?: Record<'en' | 'fr', string[]>;
 }
 
 export interface Health {
@@ -52,4 +55,4 @@ export type ChatEvent =
   | { type: 'sources'; sources: SourceRef[] }
   | { type: 'delta'; text: string }
   | { type: 'done' }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string; code?: string; params?: Record<string, string | number> };

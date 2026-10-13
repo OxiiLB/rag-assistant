@@ -261,13 +261,13 @@ describe('information disclosure', () => {
     });
     const res = await app.inject({ method: 'GET', url: '/api/boom' });
     assert.equal(res.statusCode, 500);
-    assert.deepEqual(res.json(), { error: 'Internal server error.' });
+    assert.deepEqual(res.json(), { error: 'Internal server error.', code: 'internal' });
   });
 
   it('answers unknown API routes with a JSON 404', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/admin' });
     assert.equal(res.statusCode, 404);
-    assert.deepEqual(res.json(), { error: 'Route not found.' });
+    assert.deepEqual(res.json(), { error: 'Route not found.', code: 'route_not_found' });
   });
 });
 

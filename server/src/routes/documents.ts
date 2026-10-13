@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import type { FastifyInstance, FastifyReply } from 'fastify';
 import { config } from '../config.ts';
+import { errorBody } from '../errors.ts';
 import { enqueue } from '../services/ingest.ts';
 import * as registry from '../services/registry.ts';
 import { vectorStore } from '../services/vector-store.ts';
@@ -16,7 +17,7 @@ const idParams = {
 } as const;
 
 function refuseInDemo(reply: FastifyReply) {
-  return reply.code(403).send({ error: 'Demo mode: the corpus is read-only.' });
+  return reply.code(403).send(errorBody('demo_read_only', 'Demo mode: the corpus is read-only.'));
 }
 
 export function documentRoutes(app: FastifyInstance): void {
@@ -30,7 +31,7 @@ export function documentRoutes(app: FastifyInstance): void {
 
       const file = await req.file();
       if (!file) {
-        return reply.code(400).send({ error: 'No file received.' });
+        return reply.code(400).send(errorBody('no_file', 'No file received.'));
       }
 
       let buffer: Buffer;
@@ -39,20 +40,24 @@ export function documentRoutes(app: FastifyInstance): void {
       } catch (err) {
         if (err instanceof app.multipartErrors.RequestFileTooLargeError) {
           const maxMb = config.maxUploadBytes / 1024 / 1024;
-          return reply.code(413).send({ error: `File too large (maximum ${maxMb} MB).` });
+          return reply.code(413).send(errorBody('file_too_large', `File too large (maximum ${maxMb} MB).`, { maxMb }));
         }
         throw err;
       }
 
       // The header may follow a little leading garbage, which readers tolerate within 1 KB.
       if (!buffer.subarray(0, 1024).includes('%PDF-')) {
-        return reply.code(415).send({ error: 'This file is not a valid PDF.' });
+        return reply.code(415).send(errorBody('not_pdf', 'This file is not a valid PDF.'));
       }
 
       const hash = crypto.createHash('sha256').update(buffer).digest('hex');
       const existing = registry.findByHash(hash);
       if (existing && existing.status !== 'failed') {
-        return reply.code(409).send({ error: `This document is already indexed ("${existing.name}").` });
+        return reply.code(409).send(
+          errorBody('already_indexed', `This document is already indexed ("${existing.name}").`, {
+            name: existing.name,
+          }),
+        );
       }
 
       const meta: DocumentMeta = {
@@ -76,7 +81,7 @@ export function documentRoutes(app: FastifyInstance): void {
   app.delete<{ Params: { id: string } }>('/api/documents/:id', { schema: idParams }, async (req, reply) => {
     if (config.demoMode) return refuseInDemo(reply);
     const doc = registry.getDocument(req.params.id);
-    if (!doc) return reply.code(404).send({ error: 'Document not found.' });
+    if (!doc) return reply.code(404).send(errorBody('not_found', 'Document not found.'));
     await vectorStore.deleteByDoc(doc.id);
     registry.removeDocument(doc.id);
     return { ok: true };
@@ -87,7 +92,7 @@ export function documentRoutes(app: FastifyInstance): void {
     const doc = registry.getDocument(req.params.id);
     const path = registry.pdfPath(req.params.id);
     if (!doc || !fs.existsSync(path)) {
-      return reply.code(404).send({ error: 'Document not found.' });
+      return reply.code(404).send(errorBody('not_found', 'Document not found.'));
     }
     return reply
       .type('application/pdf')

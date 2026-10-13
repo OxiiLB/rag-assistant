@@ -17,7 +17,12 @@ export class ChatService {
 
     if (!res.ok || !res.body) {
       const body = await res.json().catch(() => undefined);
-      yield { type: 'error', message: body?.error ?? `Erreur serveur (${res.status})` };
+      yield {
+        type: 'error',
+        message: body?.error ?? `Server error (${res.status})`,
+        code: body?.code ?? 'internal',
+        params: body?.params,
+      };
       return;
     }
 
@@ -60,7 +65,7 @@ function parseSse(raw: string): ChatEvent | undefined {
       case 'done':
         return { type: 'done' };
       case 'error':
-        return { type: 'error', message: payload.message };
+        return { type: 'error', message: payload.message, code: payload.code, params: payload.params };
       default:
         return undefined;
     }

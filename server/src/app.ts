@@ -6,6 +6,7 @@ import rateLimit from '@fastify/rate-limit';
 import fastifyStatic from '@fastify/static';
 import Fastify, { type FastifyError, type FastifyInstance } from 'fastify';
 import { config } from './config.ts';
+import { type ErrorParams, errorBody } from './errors.ts';
 import { chatRoutes } from './routes/chat.ts';
 import { documentRoutes } from './routes/documents.ts';
 import { embeddingReady } from './services/embeddings.ts';
@@ -35,21 +36,23 @@ export async function buildApp({ logger = true } = {}): Promise<FastifyInstance>
     errorResponseBuilder: (_req, ctx) =>
       Object.assign(new Error(`Too many requests: try again in ${Math.ceil(ctx.ttl / 1000)} s.`), {
         statusCode: 429,
+        errorCode: 'rate_limited',
+        params: { seconds: Math.ceil(ctx.ttl / 1000) },
       }),
   });
   await app.register(multipart, { limits: { fileSize: config.maxUploadBytes, files: 1 } });
 
-  // One error shape for the client: { error: "<message>" }, never internals on 5xx.
-  app.setErrorHandler((err: FastifyError, req, reply) => {
+  // One error shape for the client: { error, code, params? }, never internals on 5xx.
+  app.setErrorHandler((err: FastifyError & { errorCode?: string; params?: ErrorParams }, req, reply) => {
     const status = err.statusCode ?? 500;
     if (err.validation) {
-      return reply.code(400).send({ error: `Invalid request: ${err.message}` });
+      return reply.code(400).send(errorBody('invalid_request', `Invalid request: ${err.message}`));
     }
     if (status >= 500) {
       req.log.error(err);
-      return reply.code(status).send({ error: 'Internal server error.' });
+      return reply.code(status).send(errorBody('internal', 'Internal server error.'));
     }
-    return reply.code(status).send({ error: err.message });
+    return reply.code(status).send(errorBody(err.errorCode ?? 'request_failed', err.message, err.params));
   });
 
   app.get('/api/health', async () => ({
@@ -75,7 +78,7 @@ export async function buildApp({ logger = true } = {}): Promise<FastifyInstance>
     if (config.production && req.method === 'GET' && !req.url.startsWith('/api/')) {
       return reply.sendFile('index.html');
     }
-    return reply.code(404).send({ error: 'Route not found.' });
+    return reply.code(404).send(errorBody('route_not_found', 'Route not found.'));
   });
 
   return app;

@@ -1,6 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { FastifyInstance } from 'fastify';
 import { config } from '../config.ts';
+import { type ErrorBody, errorBody } from '../errors.ts';
 import { buildMessages, retrieve, streamAnswer } from '../services/rag.ts';
 import { listDocuments } from '../services/registry.ts';
 import type { ChatTurn } from '../types.ts';
@@ -35,7 +36,7 @@ const chatSchema = {
 
 /**
  * POST /api/chat — Server-Sent Events stream.
- * Events: `sources` (SourceRef[]), `delta` ({text}), `done` ({usage}), `error` ({message}).
+ * Events: `sources` (SourceRef[]), `delta` ({text}), `done` ({usage}), `error` ({message, code, params?}).
  */
 export function chatRoutes(app: FastifyInstance): void {
   const options = {
@@ -47,13 +48,19 @@ export function chatRoutes(app: FastifyInstance): void {
     const { messages } = req.body;
     const last = messages.at(-1);
     if (last?.role !== 'user' || !last.content.trim()) {
-      return reply.code(400).send({ error: 'The conversation must end with a question.' });
+      return reply.code(400).send(errorBody('no_question', 'The conversation must end with a question.'));
     }
     if (last.content.length > config.maxQuestionChars) {
-      return reply.code(400).send({ error: `Question too long (maximum ${config.maxQuestionChars} characters).` });
+      return reply.code(400).send(
+        errorBody('question_too_long', `Question too long (maximum ${config.maxQuestionChars} characters).`, {
+          max: config.maxQuestionChars,
+        }),
+      );
     }
     if (!listDocuments().some((d) => d.status === 'ready')) {
-      return reply.code(409).send({ error: 'No documents indexed. Add at least one PDF before asking a question.' });
+      return reply.code(409).send(
+        errorBody('no_documents', 'No documents indexed. Add at least one PDF before asking a question.'),
+      );
     }
 
     const question = last.content.trim();
@@ -93,26 +100,30 @@ export function chatRoutes(app: FastifyInstance): void {
       send('done', { stopReason: final.stop_reason, usage });
     } catch (err) {
       req.log.error(err, 'chat stream failed');
-      send('error', { message: userFacingError(err) });
+      const { error, ...rest } = userFacingError(err);
+      send('error', { message: error, ...rest });
     } finally {
       raw.end();
     }
   });
 }
 
-function userFacingError(err: unknown): string {
+function userFacingError(err: unknown): ErrorBody {
   if (err instanceof Error && err.message.includes('authentication method')) {
-    return 'Anthropic API key not configured: copy server/.env.example to server/.env and set ANTHROPIC_API_KEY.';
+    return errorBody(
+      'api_key_missing',
+      'Anthropic API key not configured: copy server/.env.example to server/.env and set ANTHROPIC_API_KEY.',
+    );
   }
   if (err instanceof Anthropic.AuthenticationError) {
-    return 'Anthropic API key missing or invalid (ANTHROPIC_API_KEY in server/.env).';
+    return errorBody('api_key_invalid', 'Anthropic API key missing or invalid (ANTHROPIC_API_KEY in server/.env).');
   }
   if (err instanceof Anthropic.RateLimitError) {
-    return 'API rate limit reached, try again in a moment.';
+    return errorBody('llm_rate_limited', 'API rate limit reached, try again in a moment.');
   }
   if (err instanceof Anthropic.APIError) {
-    return `LLM API error (${err.status}): ${err.message}`;
+    return errorBody('llm_error', `LLM API error (${err.status}): ${err.message}`, { status: err.status ?? 0 });
   }
-  if (err instanceof Error && err.name === 'AbortError') return 'Generation stopped.';
-  return err instanceof Error ? err.message : 'Unexpected server error.';
+  if (err instanceof Error && err.name === 'AbortError') return errorBody('aborted', 'Generation stopped.');
+  return errorBody('internal', err instanceof Error ? err.message : 'Unexpected server error.');
 }

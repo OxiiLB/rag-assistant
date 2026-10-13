@@ -2,16 +2,19 @@ import { Component, ElementRef, computed, inject, signal, viewChild } from '@ang
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { ChatService } from '../../chat.service';
+import { I18n } from '../../i18n';
 import { ChatTurn, Segment, SourceRef, UiMessage } from '../../models';
+import { LangSwitch } from '../lang-switch/lang-switch';
 
 @Component({
   selector: 'app-chat',
-  imports: [FormsModule],
+  imports: [FormsModule, LangSwitch],
   templateUrl: './chat.html',
 })
 export class Chat {
   protected readonly api = inject(ApiService);
   private readonly chatService = inject(ChatService);
+  protected readonly i18n = inject(I18n);
 
   protected readonly messages = signal<UiMessage[]>([]);
   protected readonly busy = signal(false);
@@ -22,13 +25,14 @@ export class Chat {
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
 
   /** Starter questions generated per document at indexing time, so they match the actual corpus. */
-  protected readonly suggestions = computed(() =>
-    this.api
+  protected readonly suggestions = computed(() => {
+    const lang = this.i18n.lang();
+    return this.api
       .documents()
       .filter((d) => d.status === 'ready')
-      .flatMap((d) => (d.suggestions ?? []).map((question) => ({ question, docName: d.name })))
-      .slice(0, 6),
-  );
+      .flatMap((d) => (d.suggestions?.[lang] ?? []).map((question) => ({ question, docName: d.name })))
+      .slice(0, 6);
+  });
 
   protected async send(text?: string): Promise<void> {
     const question = (text ?? this.draft).trim();
@@ -60,7 +64,11 @@ export class Chat {
             this.scrollDown();
             break;
           case 'error':
-            this.patchLast((m) => ({ ...m, error: event.message, streaming: false }));
+            this.patchLast((m) => ({
+              ...m,
+              error: this.i18n.error(event.code, event.params, event.message),
+              streaming: false,
+            }));
             break;
           case 'done':
             break;
@@ -68,7 +76,7 @@ export class Chat {
       }
     } catch (err: unknown) {
       if ((err as Error)?.name !== 'AbortError') {
-        this.patchLast((m) => ({ ...m, error: 'Could not reach the server.', streaming: false }));
+        this.patchLast((m) => ({ ...m, error: this.i18n.t('chat.unreachable'), streaming: false }));
       }
     } finally {
       this.patchLast((m) => ({ ...m, streaming: false }));

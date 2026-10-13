@@ -13,6 +13,8 @@ export interface DocumentMeta {
   progress?: number | undefined;
   /** User-facing reason, when failed. */
   error?: string | undefined;
+  /** Document-specific starter questions shown in the chat's empty state. */
+  suggestions?: string[] | undefined;
   /** SHA-256 of the PDF, to refuse indexing the same file twice. */
   hash: string;
 }

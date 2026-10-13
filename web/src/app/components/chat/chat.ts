@@ -1,4 +1,4 @@
-import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
+import { Component, ElementRef, computed, inject, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from '../../api.service';
 import { ChatService } from '../../chat.service';
@@ -21,11 +21,14 @@ export class Chat {
   private abortController: AbortController | null = null;
   private readonly scroller = viewChild<ElementRef<HTMLElement>>('scroller');
 
-  protected readonly suggestions = [
-    'Summarize this document for me.',
-    'What are the key takeaways?',
-    'What does the document say about…?',
-  ];
+  /** Starter questions generated per document at indexing time, so they match the actual corpus. */
+  protected readonly suggestions = computed(() =>
+    this.api
+      .documents()
+      .filter((d) => d.status === 'ready')
+      .flatMap((d) => (d.suggestions ?? []).map((question) => ({ question, docName: d.name })))
+      .slice(0, 6),
+  );
 
   protected async send(text?: string): Promise<void> {
     const question = (text ?? this.draft).trim();

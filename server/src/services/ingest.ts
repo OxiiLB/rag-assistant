@@ -1,10 +1,12 @@
 import fs from 'node:fs';
 import type { FastifyBaseLogger } from 'fastify';
 import { config } from '../config.ts';
+import type { Chunk } from '../types.ts';
 import { chunkPages, contextualText } from './chunking.ts';
 import { embedPassages } from './embeddings.ts';
 import { extractPdfPages } from './pdf.ts';
 import * as registry from './registry.ts';
+import { generateSuggestions } from './suggestions.ts';
 import { vectorStore } from './vector-store.ts';
 
 /**
@@ -19,6 +21,28 @@ let queue: Promise<void> = Promise.resolve();
 export function enqueue(docId: string, log: FastifyBaseLogger): void {
   // The catch keeps one broken job (e.g. disk full) from stalling every later one.
   queue = queue.then(() => ingest(docId, log)).catch((err) => log.error({ err, docId }, 'ingest job crashed'));
+}
+
+/** For documents indexed before suggestions existed: generates them from the stored chunks. */
+export function enqueueSuggestions(docId: string, log: FastifyBaseLogger): void {
+  queue = queue
+    .then(async () => {
+      const chunks = (await vectorStore.listChunks()).filter((c) => c.docId === docId);
+      if (chunks.length > 0) await suggest(docId, chunks, log);
+    })
+    .catch((err) => log.error({ err, docId }, 'suggestion job crashed'));
+}
+
+/** Stores starter questions for the chat's empty state; failure only means none are shown. */
+async function suggest(docId: string, chunks: Chunk[], log: FastifyBaseLogger): Promise<void> {
+  const doc = registry.getDocument(docId);
+  if (!doc) return;
+  try {
+    const suggestions = await generateSuggestions(doc.name, chunks);
+    registry.updateDocument(docId, { suggestions });
+  } catch (err) {
+    log.warn({ err, docId }, 'suggestion generation failed');
+  }
 }
 
 async function ingest(docId: string, log: FastifyBaseLogger): Promise<void> {
@@ -42,6 +66,8 @@ async function ingest(docId: string, log: FastifyBaseLogger): Promise<void> {
     // A job resumed after a crash may already have written some of its chunks.
     await vectorStore.deleteByDoc(docId);
     await vectorStore.upsert(chunks, vectors);
+    // Before flipping to ready: the client stops polling once nothing is processing.
+    await suggest(docId, chunks, log);
 
     const updated = registry.updateDocument(docId, {
       status: 'ready',

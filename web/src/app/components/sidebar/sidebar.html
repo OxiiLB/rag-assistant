@@ -1,20 +1,27 @@
 <div class="flex h-full flex-col gap-4 p-4">
-  <div>
-    <h1 class="text-lg font-semibold text-slate-900">RAG Assistant</h1>
-    <p class="text-xs text-slate-500">Query your documents, get cited answers.</p>
+  <div class="flex items-center gap-3">
+    <div class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-night-600 bg-night-800">
+      <svg class="size-5 text-accent" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9L12 2.5z" />
+      </svg>
+    </div>
+    <div>
+      <h1 class="text-lg leading-tight font-bold text-ink">RAG Assistant</h1>
+      <p class="text-xs text-ink-muted">Query your documents, get cited answers.</p>
+    </div>
   </div>
 
   @if (api.demoMode()) {
-    <div class="rounded-xl border border-indigo-100 bg-indigo-50 px-4 py-3 text-xs text-indigo-800">
-      <span class="font-semibold">Demo mode</span> — preloaded read-only corpus. Ask your questions in the conversation.
+    <div class="rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-xs leading-relaxed text-ink-muted">
+      <span class="font-semibold text-accent">Demo mode</span> — preloaded read-only corpus. Ask your questions in the conversation.
     </div>
   } @else {
   <!-- Upload zone -->
   <label
-    class="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors"
-    [class.border-indigo-400]="dragOver()"
-    [class.bg-indigo-50]="dragOver()"
-    [class.border-slate-300]="!dragOver()"
+    class="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors hover:border-accent/60 hover:bg-night-800"
+    [class.border-accent]="dragOver()"
+    [class.bg-night-800]="dragOver()"
+    [class.border-night-600]="!dragOver()"
     (dragover)="onDragOver($event)"
     (dragleave)="dragOver.set(false)"
     (drop)="onDrop($event)"
@@ -28,48 +35,48 @@
       [disabled]="uploading() !== null"
     />
     @if (uploading(); as name) {
-      <svg class="size-5 animate-spin text-indigo-600" viewBox="0 0 24 24" fill="none">
+      <svg class="size-5 animate-spin text-accent" viewBox="0 0 24 24" fill="none">
         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
       </svg>
-      <span class="text-sm font-medium text-slate-700">Uploading…</span>
-      <span class="max-w-full truncate text-xs text-slate-500">{{ name }}</span>
+      <span class="text-sm font-medium text-ink">Uploading…</span>
+      <span class="max-w-full truncate text-xs text-ink-muted">{{ name }}</span>
     } @else {
-      <svg class="size-5 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+      <svg class="size-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
       </svg>
-      <span class="text-sm font-medium text-slate-700">Add PDFs</span>
-      <span class="text-xs text-slate-500">Click or drag and drop</span>
+      <span class="text-sm font-medium text-ink">Add PDFs</span>
+      <span class="text-xs text-ink-muted">Click or drag and drop</span>
     }
   </label>
   }
 
   @if (error(); as message) {
-    <div class="rounded-lg bg-red-50 px-3 py-2 text-xs whitespace-pre-line text-red-700">{{ message }}</div>
+    <div class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs whitespace-pre-line text-red-300">{{ message }}</div>
   }
 
   <!-- Document list -->
   <div class="min-h-0 flex-1 overflow-y-auto">
-    <h2 class="mb-2 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+    <h2 class="mb-2 text-xs font-semibold tracking-wide text-ink-subtle uppercase">
       Documents ({{ api.documents().length }})
     </h2>
     @if (api.documents().length === 0 && !uploading()) {
-      <p class="text-xs text-slate-400">No documents indexed yet.</p>
+      <p class="text-xs text-ink-subtle">No documents indexed yet.</p>
     }
     <ul class="space-y-2">
       @for (doc of api.documents(); track doc.id) {
-        <li class="group rounded-lg border border-slate-200 bg-white p-3 shadow-sm">
+        <li class="group rounded-lg border border-night-700 bg-night-800 p-3">
           <div class="flex items-start justify-between gap-2">
             <a
               [href]="fileUrl(doc)"
               target="_blank"
-              class="min-w-0 text-sm font-medium break-words text-slate-800 hover:text-indigo-600"
+              class="min-w-0 text-sm font-medium break-words text-ink hover:text-accent"
               title="Open the PDF"
               >{{ doc.name }}</a
             >
             @if (!api.demoMode()) {
               <button
-                class="shrink-0 rounded p-1 text-slate-400 transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                class="shrink-0 rounded p-1 text-ink-subtle transition-opacity group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
                 [class.opacity-0]="doc.status !== 'failed'"
                 [title]="doc.status === 'failed' ? 'Delete (then upload the file again to retry)' : 'Delete'"
                 [disabled]="deleting() === doc.id"
@@ -84,20 +91,20 @@
           @switch (doc.status) {
             @case ('processing') {
               <div class="mt-2">
-                <div class="flex justify-between text-xs text-indigo-700">
+                <div class="flex justify-between text-xs text-accent">
                   <span>Indexing…</span>
                   <span>{{ percent(doc) }}%</span>
                 </div>
-                <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-slate-100">
-                  <div class="h-full rounded-full bg-indigo-500 transition-all" [style.width.%]="percent(doc)"></div>
+                <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-night-700">
+                  <div class="h-full rounded-full bg-accent transition-all" [style.width.%]="percent(doc)"></div>
                 </div>
               </div>
             }
             @case ('failed') {
-              <p class="mt-1 text-xs text-red-600">{{ doc.error ?? 'Indexing failed.' }}</p>
+              <p class="mt-1 text-xs text-red-400">{{ doc.error ?? 'Indexing failed.' }}</p>
             }
             @default {
-              <p class="mt-1 text-xs text-slate-500">
+              <p class="mt-1 text-xs text-ink-muted">
                 {{ doc.pages }} page{{ doc.pages === 1 ? '' : 's' }} · {{ doc.chunkCount }} passages ·
                 {{ formatSize(doc.sizeBytes) }} · {{ doc.uploadedAt | date: 'mediumDate' }}
               </p>

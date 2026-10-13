@@ -1,5 +1,35 @@
 @import 'tailwindcss';
 
+/* Brand palette: night blue surfaces, warm orange accent. */
+@theme {
+  --font-sans: 'Roboto', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+
+  --color-night-950: #0b1322;
+  --color-night-900: #111a2e;
+  --color-night-800: #18233b;
+  --color-night-700: #223050;
+  --color-night-600: #2f4066;
+
+  --color-accent: #f59a4a;
+  --color-accent-strong: #f7ad6c;
+  --color-accent-ink: #1a1206;
+
+  --color-ink: #f4f5f8;
+  --color-ink-muted: #b8c1d4;
+  --color-ink-subtle: #8a96ae;
+}
+
+html,
+body {
+  background: var(--color-night-900);
+  color: var(--color-ink);
+  color-scheme: dark;
+}
+
+::selection {
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+}
+
 /* Citation chips [n]: global so they style the buttons rendered inside answer text */
 .cite {
   display: inline-flex;
@@ -10,8 +40,8 @@
   padding: 0 0.25rem;
   margin: 0 0.1rem;
   border-radius: 0.375rem;
-  background: var(--color-indigo-100);
-  color: var(--color-indigo-700);
+  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
+  color: var(--color-accent-strong);
   font-size: 0.68rem;
   font-weight: 600;
   vertical-align: text-top;
@@ -20,5 +50,5 @@
 }
 
 .cite:hover {
-  background: var(--color-indigo-200);
+  background: color-mix(in srgb, var(--color-accent) 32%, transparent);
 }

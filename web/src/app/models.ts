@@ -9,6 +9,8 @@ export interface DocumentMeta {
   /** 0–1 while processing. */
   progress?: number;
   error?: string;
+  /** Starter questions generated from the document at indexing time. */
+  suggestions?: string[];
 }
 
 export interface Health {

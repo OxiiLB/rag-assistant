@@ -10,7 +10,8 @@ export const config = {
   port: Number(process.env.PORT ?? 3000),
   production: process.env.NODE_ENV === 'production',
   model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5',
-  /** Optional: when set (e.g. http://localhost:6333), vectors go to Qdrant instead of the local file store. */
+  /** Small, fast model that turns follow-up questions into standalone search queries. */
+  rewriteModel: process.env.ANTHROPIC_REWRITE_MODEL ?? 'claude-haiku-5-5',
   qdrantUrl: process.env.QDRANT_URL,
   qdrantCollection: process.env.QDRANT_COLLECTION ?? 'rag_chunks',
   dataDir: path.resolve(process.env.DATA_DIR ?? 'data'),

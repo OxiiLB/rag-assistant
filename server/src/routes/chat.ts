@@ -2,7 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { FastifyInstance } from 'fastify';
 import { config } from '../config.ts';
 import { type ErrorBody, errorBody } from '../errors.ts';
-import { buildMessages, retrieve, streamAnswer } from '../services/rag.ts';
+import { buildMessages, condenseQuestion, retrieve, streamAnswer } from '../services/rag.ts';
 import { listDocuments } from '../services/registry.ts';
 import type { ChatTurn } from '../types.ts';
 
@@ -78,8 +78,12 @@ export function chatRoutes(app: FastifyInstance): void {
     };
 
     try {
+      const rewriteStart = Date.now();
+      const searchQuery = await condenseQuestion(history, question);
+      const rewriteMs = Date.now() - rewriteStart;
+
       const retrievalStart = Date.now();
-      const { hits, sources } = await retrieve(question);
+      const { hits, sources } = await retrieve(searchQuery);
       const retrievalMs = Date.now() - retrievalStart;
       send('sources', sources);
 
@@ -96,7 +100,7 @@ export function chatRoutes(app: FastifyInstance): void {
         cacheReadTokens: final.usage.cache_read_input_tokens,
       };
       // Metrics only: question and document text stay out of the logs.
-      req.log.info({ hits: hits.length, retrievalMs, stopReason: final.stop_reason, ...usage }, 'chat answered');
+      req.log.info({ hits: hits.length, rewriteMs, retrievalMs, stopReason: final.stop_reason, ...usage }, 'chat answered');
       send('done', { stopReason: final.stop_reason, usage });
     } catch (err) {
       req.log.error(err, 'chat stream failed');

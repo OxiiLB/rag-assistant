@@ -37,16 +37,20 @@ async function ensureLexicalIndex(): Promise<void> {
  * Hybrid retrieval: dense (embeddings) and sparse (BM25) run independently, then
  * Reciprocal Rank Fusion merges the two rankings. RRF only looks at positions, so
  * it needs no score calibration between two incomparable scales — and a passage
- * ranked well by either retriever surfaces.
+ * ranked well by either retriever surfaces. `docIds` limits both retrievers to
+ * the documents the user selected.
  */
-export async function retrieve(question: string): Promise<{ hits: SearchHit[]; sources: SourceRef[] }> {
+export async function retrieve(
+  question: string,
+  docIds?: string[],
+): Promise<{ hits: SearchHit[]; sources: SourceRef[] }> {
   await ensureLexicalIndex();
   const candidates = config.topK * 3;
 
   const vector = await embedQuery(question);
   const [dense, lexical] = await Promise.all([
-    vectorStore.search(vector, candidates),
-    Promise.resolve(lexicalIndex.search(question, candidates)),
+    vectorStore.search(vector, candidates, docIds),
+    Promise.resolve(lexicalIndex.search(question, candidates, docIds)),
   ]);
 
   const fused = new Map<string, { chunk: SearchHit['chunk']; score: number; dense: number }>();

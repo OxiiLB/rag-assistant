@@ -4,7 +4,13 @@
     <header class="flex items-center justify-between gap-3 border-b border-night-700 bg-night-900/90 px-6 py-3.5 backdrop-blur">
       <div>
         <h2 class="text-sm font-semibold text-ink">{{ i18n.t('chat.title') }}</h2>
-        <p class="text-xs text-ink-muted">{{ i18n.t('chat.indexed', { n: api.readyCount() }) }}</p>
+        <p class="text-xs text-ink-muted">
+          @if (api.scopeIds()) {
+            {{ i18n.t('chat.scoped', { n: api.scopeCount(), total: api.readyCount() }) }}
+          } @else {
+            {{ i18n.t('chat.indexed', { n: api.readyCount() }) }}
+          }
+        </p>
       </div>
       <div class="flex items-center gap-2">
         @if (messages().length > 0) {
@@ -150,7 +156,7 @@
         } @else {
           <button
             class="flex h-10 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-40"
-            [disabled]="!draft.trim() || api.readyCount() === 0"
+            [disabled]="!draft.trim() || api.scopeCount() === 0"
             (click)="send()"
           >
             {{ i18n.t('chat.send') }}
@@ -160,7 +166,11 @@
           </button>
         }
       </div>
-      <p class="mt-2.5 text-center font-mono text-[10px] tracking-wide text-ink-subtle">{{ i18n.t('chat.disclaimer') }}</p>
+      @if (api.readyCount() > 0 && api.scopeCount() === 0) {
+        <p class="mt-2.5 text-center font-mono text-[10px] tracking-wide text-accent">{{ i18n.t('chat.noScope') }}</p>
+      } @else {
+        <p class="mt-2.5 text-center font-mono text-[10px] tracking-wide text-ink-subtle">{{ i18n.t('chat.disclaimer') }}</p>
+      }
     </div>
   </div>
 

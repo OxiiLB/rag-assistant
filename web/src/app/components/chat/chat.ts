@@ -26,7 +26,7 @@ export class Chat {
 
   protected async send(text?: string): Promise<void> {
     const question = (text ?? this.draft).trim();
-    if (!question || this.busy()) return;
+    if (!question || this.busy() || this.api.scopeCount() === 0) return;
     this.draft = '';
 
     const history: ChatTurn[] = this.messages()
@@ -44,7 +44,8 @@ export class Chat {
     this.abortController = new AbortController();
     try {
       const turns = [...history, { role: 'user' as const, content: question }];
-      for await (const event of this.chatService.stream(turns, this.abortController.signal)) {
+      const events = this.chatService.stream(turns, this.abortController.signal, this.api.scopeIds());
+      for await (const event of events) {
         switch (event.type) {
           case 'sources':
             this.patchLast((m) => ({ ...m, sources: event.sources }));

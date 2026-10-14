@@ -7,7 +7,8 @@ import { writeFileAtomic } from './atomic-write.ts';
 
 export interface VectorStore {
   upsert(chunks: Chunk[], vectors: number[][]): Promise<void>;
-  search(vector: number[], topK: number): Promise<SearchHit[]>;
+  /** `docIds` restricts the search to those documents; omitted, it covers the whole corpus. */
+  search(vector: number[], topK: number, docIds?: string[]): Promise<SearchHit[]>;
   deleteByDoc(docId: string): Promise<void>;
   /** Every indexed chunk — the keyword index in `lexical.ts` is built from this. */
   listChunks(): Promise<Chunk[]>;
@@ -36,8 +37,10 @@ class LocalVectorStore implements VectorStore {
     this.save();
   }
 
-  async search(vector: number[], topK: number): Promise<SearchHit[]> {
+  async search(vector: number[], topK: number, docIds?: string[]): Promise<SearchHit[]> {
+    const scope = docIds && new Set(docIds);
     return this.points
+      .filter(({ chunk }) => !scope || scope.has(chunk.docId))
       .map(({ vector: v, chunk }) => ({ chunk, score: dot(vector, v) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, topK);
@@ -92,12 +95,13 @@ class QdrantVectorStore implements VectorStore {
     this.revision++;
   }
 
-  async search(vector: number[], topK: number): Promise<SearchHit[]> {
+  async search(vector: number[], topK: number, docIds?: string[]): Promise<SearchHit[]> {
     await this.ensureCollection();
     const { points } = await this.client.query(config.qdrantCollection, {
       query: vector,
       limit: topK,
       with_payload: true,
+      ...(docIds ? { filter: { must: [{ key: 'docId', match: { any: docIds } }] } } : {}),
     });
     return points.map((p) => ({ chunk: p.payload as unknown as Chunk, score: p.score }));
   }

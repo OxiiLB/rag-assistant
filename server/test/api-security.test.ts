@@ -1,5 +1,6 @@
 import { dataDir } from './setup.ts';
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, it } from 'node:test';
@@ -198,6 +199,32 @@ describe('chat input validation', () => {
     seedDocument('pending.pdf', makePdf(['Still being indexed, so not searchable yet.']), 'processing');
     const res = await chat(question('What is in the documents?'));
     assert.equal(res.statusCode, 409);
+  });
+});
+
+describe('document scope (docIds)', () => {
+  const scoped = (docIds: unknown) => chat({ ...question('What is in the documents?'), docIds });
+
+  it('rejects ids that are not UUIDs (no path traversal or injection through the scope)', async () => {
+    seedDocument('ready.pdf', makePdf(['Searchable content.']));
+    for (const docIds of [['../../etc/passwd'], ['x" OR 1=1'], [42], 'not-an-array']) {
+      assert.equal((await scoped(docIds)).statusCode, 400, JSON.stringify(docIds));
+    }
+  });
+
+  it('rejects an empty or oversized scope', async () => {
+    seedDocument('ready.pdf', makePdf(['Searchable content.']));
+    assert.equal((await scoped([])).statusCode, 400);
+    const many = Array.from({ length: 101 }, () => crypto.randomUUID());
+    assert.equal((await scoped(many)).statusCode, 400);
+  });
+
+  it('answers 409 when no selected document is ready, without calling the LLM', async () => {
+    seedDocument('ready.pdf', makePdf(['Searchable content.']));
+    const pending = seedDocument('pending.pdf', makePdf(['Still indexing.']), 'processing');
+    const res = await scoped([pending.id, crypto.randomUUID()]);
+    assert.equal(res.statusCode, 409);
+    assert.equal(res.json().code, 'no_documents_in_scope');
   });
 });
 

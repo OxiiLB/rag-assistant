@@ -5,13 +5,14 @@ import { ChatEvent, ChatTurn } from './models';
 export class ChatService {
   /**
    * POSTs the conversation and yields the server's SSE events
-   * (`sources`, `delta`, `done`, `error`) as they arrive.
+   * (`sources`, `delta`, `done`, `error`) as they arrive. `docIds` limits the
+   * search to those documents; omitted, the whole corpus is searched.
    */
-  async *stream(messages: ChatTurn[], signal: AbortSignal): AsyncGenerator<ChatEvent> {
+  async *stream(messages: ChatTurn[], signal: AbortSignal, docIds?: string[]): AsyncGenerator<ChatEvent> {
     const res = await fetch('/api/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ messages }),
+      body: JSON.stringify({ messages, docIds }),
       signal,
     });
 

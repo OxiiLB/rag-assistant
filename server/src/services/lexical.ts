@@ -63,12 +63,14 @@ export class LexicalIndex {
       : 0;
   }
 
-  search(query: string, limit: number): { chunk: Chunk; score: number }[] {
+  /** `docIds` restricts results; IDF stays corpus-wide so scores keep the same scale. */
+  search(query: string, limit: number, docIds?: string[]): { chunk: Chunk; score: number }[] {
     if (this.entries.length === 0) return [];
     const queryTerms = tokenize(query);
     const total = this.entries.length;
+    const scope = docIds && new Set(docIds);
 
-    const scored = this.entries.map((entry) => {
+    const scored = this.entries.filter((entry) => !scope || scope.has(entry.chunk.docId)).map((entry) => {
       let score = 0;
       for (const term of queryTerms) {
         const tf = entry.terms.get(term);

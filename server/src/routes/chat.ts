@@ -9,6 +9,8 @@ import type { ChatTurn } from '../types.ts';
 interface ChatBody {
   /** Full conversation, last entry being the new user question (plain text, no sources). */
   messages: ChatTurn[];
+  /** Documents to search; omitted, the whole corpus is searched. */
+  docIds?: string[];
 }
 
 const chatSchema = {
@@ -30,6 +32,13 @@ const chatSchema = {
           },
         },
       },
+      docIds: {
+        type: 'array',
+        minItems: 1,
+        maxItems: 100,
+        uniqueItems: true,
+        items: { type: 'string', format: 'uuid' },
+      },
     },
   },
 } as const;
@@ -45,7 +54,7 @@ export function chatRoutes(app: FastifyInstance): void {
   };
 
   app.post<{ Body: ChatBody }>('/api/chat', options, async (req, reply) => {
-    const { messages } = req.body;
+    const { messages, docIds } = req.body;
     const last = messages.at(-1);
     if (last?.role !== 'user' || !last.content.trim()) {
       return reply.code(400).send(errorBody('no_question', 'The conversation must end with a question.'));
@@ -60,6 +69,14 @@ export function chatRoutes(app: FastifyInstance): void {
     if (!listDocuments().some((d) => d.status === 'ready')) {
       return reply.code(409).send(
         errorBody('no_documents', 'No documents indexed. Add at least one PDF before asking a question.'),
+      );
+    }
+    // Unknown or still-indexing ids are dropped rather than rejected: a document may
+    // have been deleted in another tab since the visitor ticked it.
+    const scope = docIds?.filter((id) => listDocuments().some((d) => d.id === id && d.status === 'ready'));
+    if (scope?.length === 0) {
+      return reply.code(409).send(
+        errorBody('no_documents_in_scope', 'None of the selected documents is ready. Select at least one indexed document.'),
       );
     }
 
@@ -83,7 +100,7 @@ export function chatRoutes(app: FastifyInstance): void {
       const rewriteMs = Date.now() - rewriteStart;
 
       const retrievalStart = Date.now();
-      const { hits, sources } = await retrieve(searchQuery);
+      const { hits, sources } = await retrieve(searchQuery, scope);
       const retrievalMs = Date.now() - retrievalStart;
       send('sources', sources);
 
@@ -100,7 +117,7 @@ export function chatRoutes(app: FastifyInstance): void {
         cacheReadTokens: final.usage.cache_read_input_tokens,
       };
       // Metrics only: question and document text stay out of the logs.
-      req.log.info({ hits: hits.length, rewriteMs, retrievalMs, stopReason: final.stop_reason, ...usage }, 'chat answered');
+      req.log.info({ hits: hits.length, scopedDocs: scope?.length, rewriteMs, retrievalMs, stopReason: final.stop_reason, ...usage }, 'chat answered');
       send('done', { stopReason: final.stop_reason, usage });
     } catch (err) {
       req.log.error(err, 'chat stream failed');

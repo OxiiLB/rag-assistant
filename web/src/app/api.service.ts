@@ -13,6 +13,31 @@ export class ApiService {
   /** Shared document list (sidebar writes, chat reads for the empty state). */
   readonly documents = signal<DocumentMeta[]>([]);
   readonly readyCount = computed(() => this.documents().filter((d) => d.status === 'ready').length);
+  /** Documents the visitor unticked; everything else is searched, so new uploads join the scope. */
+  readonly excludedIds = signal<ReadonlySet<string>>(new Set());
+  /** Sent as `docIds`; undefined while every ready document is selected (whole corpus). */
+  readonly scopeIds = computed(() => {
+    const ready = this.documents().filter((d) => d.status === 'ready');
+    const selected = ready.filter((d) => !this.excludedIds().has(d.id));
+    return selected.length === ready.length ? undefined : selected.map((d) => d.id);
+  });
+  readonly scopeCount = computed(() => this.scopeIds()?.length ?? this.readyCount());
+
+  isInScope(docId: string): boolean {
+    return !this.excludedIds().has(docId);
+  }
+
+  toggleScope(docId: string): void {
+    this.excludedIds.update((ids) => {
+      const next = new Set(ids);
+      if (!next.delete(docId)) next.add(docId);
+      return next;
+    });
+  }
+
+  selectAll(): void {
+    this.excludedIds.set(new Set());
+  }
   /** Read-only public showcase: upload and delete are hidden. */
   readonly demoMode = signal(false);
   /** Generation model reported by the server, shown in the sidebar footer. */

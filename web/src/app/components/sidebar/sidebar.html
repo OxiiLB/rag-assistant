@@ -68,6 +68,11 @@
     <h2 class="mb-2 flex gap-2 font-mono text-[11px] font-medium tracking-[0.08em] uppercase">
       <span class="text-ink-subtle">{{ i18n.t('sidebar.documents') }}</span>
       <span class="text-accent">{{ api.documents().length.toString().padStart(2, '0') }}</span>
+      @if (api.scopeIds()) {
+        <button type="button" class="ml-auto text-ink-muted normal-case hover:text-accent" (click)="api.selectAll()">
+          {{ i18n.t('sidebar.selectAll') }}
+        </button>
+      }
     </h2>
     @if (api.documents().length === 0 && !uploading()) {
       <p class="text-xs text-ink-subtle">{{ i18n.t('sidebar.empty') }}</p>
@@ -75,10 +80,21 @@
     <ul class="space-y-2">
       @for (doc of api.documents(); track doc.id) {
         <li
-          class="group rounded-xl border bg-night-800 p-3"
+          class="group rounded-xl border bg-night-800 p-3 transition-opacity"
           [class]="doc.status === 'failed' ? 'border-danger/40' : 'border-night-700'"
+          [class.opacity-55]="doc.status === 'ready' && !api.isInScope(doc.id)"
         >
           <div class="flex items-start gap-2">
+            @if (doc.status === 'ready') {
+              <input
+                type="checkbox"
+                class="mt-0.5 size-4 shrink-0 cursor-pointer accent-accent"
+                [checked]="api.isInScope(doc.id)"
+                [title]="i18n.t('sidebar.inScope')"
+                [attr.aria-label]="i18n.t('sidebar.inScopeOf', { name: doc.name })"
+                (change)="api.toggleScope(doc.id)"
+              />
+            }
             <svg
               class="mt-0.5 size-4 shrink-0"
               [class.text-ink-subtle]="doc.status !== 'failed'"

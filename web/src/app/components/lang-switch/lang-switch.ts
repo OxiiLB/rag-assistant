@@ -6,14 +6,14 @@ import { I18n, LANGS } from '../../i18n';
   selector: 'app-lang-switch',
   template: `
     <div
-      class="flex rounded-lg border border-night-700 bg-night-800 p-0.5 text-[11px] font-semibold"
+      class="flex gap-0.5 rounded-lg border border-night-700 bg-night-800 p-0.5 font-mono text-[11px] font-medium tracking-[0.08em]"
       role="group"
       [attr.aria-label]="i18n.t('lang.switch')"
     >
       @for (lang of langs; track lang) {
         <button
           type="button"
-          class="rounded-md px-2 py-1 uppercase transition-colors"
+          class="rounded px-2 py-1 uppercase transition-colors"
           [class]="i18n.lang() === lang ? 'bg-accent text-accent-ink' : 'text-ink-muted hover:text-ink'"
           [attr.aria-pressed]="i18n.lang() === lang"
           (click)="i18n.lang.set(lang)"

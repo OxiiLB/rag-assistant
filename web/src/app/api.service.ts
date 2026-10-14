@@ -15,10 +15,13 @@ export class ApiService {
   readonly readyCount = computed(() => this.documents().filter((d) => d.status === 'ready').length);
   /** Read-only public showcase: upload and delete are hidden. */
   readonly demoMode = signal(false);
+  /** Generation model reported by the server, shown in the sidebar footer. */
+  readonly model = signal<string | null>(null);
 
   async loadHealth(): Promise<void> {
     const health = await firstValueFrom(this.http.get<Health>('/api/health'));
     this.demoMode.set(health.demoMode);
+    this.model.set(health.model);
   }
 
   async refreshDocuments(): Promise<void> {

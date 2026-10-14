@@ -1,22 +1,37 @@
 @import 'tailwindcss';
 
-/* Brand palette: night blue surfaces, warm orange accent. */
+/*
+ * Design system "pixel graphite" (Figma: RAG Assistant — Design System).
+ * Token names are unchanged from the previous theme so templates keep working:
+ * night-* = graphite surfaces, accent = cream, cite = ember (citations only).
+ * Fonts are self-hosted through @fontsource (see angular.json) to keep the CSP strict.
+ */
 @theme {
-  --font-sans: 'Roboto', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-sans: 'IBM Plex Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', monospace;
+  --font-pixel: 'Silkscreen', 'IBM Plex Mono', monospace;
 
-  --color-night-950: #0b1322;
-  --color-night-900: #111a2e;
-  --color-night-800: #18233b;
-  --color-night-700: #223050;
-  --color-night-600: #2f4066;
+  --color-night-950: #121212;
+  --color-night-900: #181818;
+  --color-night-800: #1e1e1e;
+  --color-night-750: #242424;
+  --color-night-700: #2c2c2c;
+  --color-night-600: #383838;
 
-  --color-accent: #f59a4a;
-  --color-accent-strong: #f7ad6c;
-  --color-accent-ink: #1a1206;
+  --color-accent: #eceacb;
+  --color-accent-strong: #f4f2de;
+  --color-accent-ink: #1c1b12;
 
-  --color-ink: #f4f5f8;
-  --color-ink-muted: #b8c1d4;
-  --color-ink-subtle: #8a96ae;
+  --color-ink: #f3f3ef;
+  --color-ink-muted: #b6b6ae;
+  --color-ink-subtle: #8b8b84;
+
+  --color-cite: #f59a4a;
+  --color-cite-strong: #f7ad6c;
+
+  --color-success: #6cc25a;
+  --color-danger: #ef6b65;
+  --color-danger-text: #f59c97;
 }
 
 html,
@@ -27,7 +42,7 @@ body {
 }
 
 ::selection {
-  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  background: color-mix(in srgb, var(--color-accent) 30%, transparent);
 }
 
 /* Citation chips [n]: global so they style the buttons rendered inside answer text */
@@ -35,20 +50,26 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 1.15rem;
-  height: 1.15rem;
-  padding: 0 0.25rem;
-  margin: 0 0.1rem;
-  border-radius: 0.375rem;
-  background: color-mix(in srgb, var(--color-accent) 18%, transparent);
-  color: var(--color-accent-strong);
-  font-size: 0.68rem;
-  font-weight: 600;
+  min-width: 1.25rem;
+  height: 1.125rem;
+  padding: 0 0.3rem;
+  margin: 0 0.15rem;
+  border-radius: 0.25rem;
+  background: color-mix(in srgb, var(--color-cite) 18%, transparent);
+  color: var(--color-cite-strong);
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
   vertical-align: text-top;
   cursor: pointer;
   transition: background-color 120ms;
 }
 
 .cite:hover {
-  background: color-mix(in srgb, var(--color-accent) 32%, transparent);
+  background: color-mix(in srgb, var(--color-cite) 32%, transparent);
+}
+
+/* Faded pixel dot field behind the empty-state logo */
+.pixel-field {
+  mask-image: radial-gradient(closest-side, #000 15%, transparent 100%);
 }

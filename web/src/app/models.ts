@@ -12,11 +12,10 @@ export interface DocumentMeta {
   /** Translatable key for `error` (see I18n.error). */
   errorCode?: string;
   errorParams?: Record<string, string | number>;
-  /** Starter questions generated from the document at indexing time, per UI language. */
-  suggestions?: Record<'en' | 'fr', string[]>;
 }
 
 export interface Health {
+  model: string;
   embeddingReady: boolean;
   demoMode: boolean;
 }

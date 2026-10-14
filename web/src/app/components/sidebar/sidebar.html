@@ -1,26 +1,27 @@
-<div class="flex h-full flex-col gap-4 p-4">
+<div class="flex h-full flex-col gap-5 px-4 py-5">
   <div class="flex items-center gap-3">
-    <div class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-night-600 bg-night-800">
-      <svg class="size-5 text-accent" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2.5l1.9 5.6 5.6 1.9-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.9L12 2.5z" />
+    <div class="flex size-10 shrink-0 items-center justify-center rounded-xl border border-night-600 bg-night-750">
+      <svg class="size-[18px] text-accent" viewBox="0 0 9 9" fill="currentColor" shape-rendering="crispEdges" aria-hidden="true">
+        <path d="M4 0h1v2H4zM3 2h3v1H3zM2 3h5v1H2zM0 4h9v1H0zM2 5h5v1H2zM3 6h3v1H3zM4 7h1v2H4z" />
       </svg>
     </div>
-    <div>
-      <h1 class="text-lg leading-tight font-bold text-ink">{{ i18n.t('app.title') }}</h1>
+    <div class="min-w-0">
+      <h1 class="font-pixel text-xl leading-tight tracking-wide text-accent uppercase">{{ i18n.t('app.title') }}</h1>
       <p class="text-xs text-ink-muted">{{ i18n.t('app.tagline') }}</p>
     </div>
   </div>
 
   @if (api.demoMode()) {
-    <div class="rounded-xl border border-accent/30 bg-accent/10 px-4 py-3 text-xs leading-relaxed text-ink-muted">
-      <span class="font-semibold text-accent">{{ i18n.t('sidebar.demoTitle') }}</span> — {{ i18n.t('sidebar.demoBody') }}
+    <div class="rounded-xl border border-accent/30 bg-accent/[0.06] px-4 py-3">
+      <p class="font-mono text-[11px] font-medium tracking-[0.08em] text-accent uppercase">{{ i18n.t('sidebar.demoTitle') }}</p>
+      <p class="mt-1 text-xs leading-relaxed text-ink-muted">{{ i18n.t('sidebar.demoBody') }}</p>
     </div>
   } @else {
   <!-- Upload zone -->
   <label
-    class="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors hover:border-accent/60 hover:bg-night-800"
+    class="flex cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-[1.5px] border-dashed px-4 py-6 text-center transition-colors hover:border-accent/60 hover:bg-night-750"
     [class.border-accent]="dragOver()"
-    [class.bg-night-800]="dragOver()"
+    [class.bg-night-750]="dragOver()"
     [class.border-night-600]="!dragOver()"
     (dragover)="onDragOver($event)"
     (dragleave)="dragOver.set(false)"
@@ -35,12 +36,19 @@
       [disabled]="uploading() !== null"
     />
     @if (uploading(); as name) {
-      <svg class="size-5 animate-spin text-accent" viewBox="0 0 24 24" fill="none">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+      <!-- Pixel spinner: eight squares with decreasing opacity -->
+      <svg class="size-5 animate-spin text-accent" viewBox="0 0 20 20" fill="currentColor" shape-rendering="crispEdges">
+        <rect x="8" y="0" width="4" height="4" />
+        <rect x="14" y="3" width="4" height="4" opacity=".8" />
+        <rect x="16" y="8" width="4" height="4" opacity=".6" />
+        <rect x="14" y="14" width="4" height="4" opacity=".45" />
+        <rect x="8" y="16" width="4" height="4" opacity=".3" />
+        <rect x="2" y="14" width="4" height="4" opacity=".2" />
+        <rect x="0" y="8" width="4" height="4" opacity=".15" />
+        <rect x="2" y="2" width="4" height="4" opacity=".1" />
       </svg>
       <span class="text-sm font-medium text-ink">{{ i18n.t('sidebar.uploading') }}</span>
-      <span class="max-w-full truncate text-xs text-ink-muted">{{ name }}</span>
+      <span class="max-w-full truncate font-mono text-[10px] tracking-wide text-ink-muted">{{ name }}</span>
     } @else {
       <svg class="size-5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
         <path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2" />
@@ -52,32 +60,48 @@
   }
 
   @if (error(); as message) {
-    <div class="rounded-lg border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs whitespace-pre-line text-red-300">{{ message }}</div>
+    <div class="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-xs whitespace-pre-line text-danger-text">{{ message }}</div>
   }
 
   <!-- Document list -->
   <div class="min-h-0 flex-1 overflow-y-auto">
-    <h2 class="mb-2 text-xs font-semibold tracking-wide text-ink-subtle uppercase">
-      {{ i18n.t('sidebar.documents') }} ({{ api.documents().length }})
+    <h2 class="mb-2 flex gap-2 font-mono text-[11px] font-medium tracking-[0.08em] uppercase">
+      <span class="text-ink-subtle">{{ i18n.t('sidebar.documents') }}</span>
+      <span class="text-accent">{{ api.documents().length.toString().padStart(2, '0') }}</span>
     </h2>
     @if (api.documents().length === 0 && !uploading()) {
       <p class="text-xs text-ink-subtle">{{ i18n.t('sidebar.empty') }}</p>
     }
     <ul class="space-y-2">
       @for (doc of api.documents(); track doc.id) {
-        <li class="group rounded-lg border border-night-700 bg-night-800 p-3">
-          <div class="flex items-start justify-between gap-2">
+        <li
+          class="group rounded-xl border bg-night-800 p-3"
+          [class]="doc.status === 'failed' ? 'border-danger/40' : 'border-night-700'"
+        >
+          <div class="flex items-start gap-2">
+            <svg
+              class="mt-0.5 size-4 shrink-0"
+              [class.text-ink-subtle]="doc.status !== 'failed'"
+              [class.text-danger]="doc.status === 'failed'"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.8"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5zm0 0v5h5" />
+            </svg>
             <a
               [href]="fileUrl(doc)"
               target="_blank"
-              class="min-w-0 text-sm font-medium break-words text-ink hover:text-accent"
+              class="min-w-0 flex-1 text-sm font-medium break-words text-ink hover:text-accent"
               [title]="i18n.t('sidebar.openPdf')"
               >{{ doc.name }}</a
             >
             @if (!api.demoMode()) {
               <button
-                class="shrink-0 rounded p-1 text-ink-subtle transition-opacity group-hover:opacity-100 hover:bg-red-500/10 hover:text-red-400 disabled:opacity-50"
+                class="shrink-0 rounded p-0.5 text-ink-subtle transition-opacity group-hover:opacity-100 hover:bg-danger/10 hover:text-danger-text disabled:opacity-50"
                 [class.opacity-0]="doc.status !== 'failed'"
+                [class.text-danger-text]="doc.status === 'failed'"
                 [title]="i18n.t(doc.status === 'failed' ? 'sidebar.deleteFailed' : 'sidebar.delete')"
                 [disabled]="deleting() === doc.id"
                 (click)="remove(doc)"
@@ -91,22 +115,25 @@
           @switch (doc.status) {
             @case ('processing') {
               <div class="mt-2">
-                <div class="flex justify-between text-xs text-accent">
+                <div class="flex justify-between font-mono text-[10px] tracking-wide text-accent">
                   <span>{{ i18n.t('sidebar.indexing') }}</span>
                   <span>{{ percent(doc) }}%</span>
                 </div>
-                <div class="mt-1 h-1.5 overflow-hidden rounded-full bg-night-700">
-                  <div class="h-full rounded-full bg-accent transition-all" [style.width.%]="percent(doc)"></div>
+                <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-night-700">
+                  <div class="h-full bg-accent transition-all" [style.width.%]="percent(doc)"></div>
                 </div>
               </div>
             }
             @case ('failed') {
-              <p class="mt-1 text-xs text-red-400">{{ i18n.error(doc.errorCode, doc.errorParams, doc.error ?? i18n.t('sidebar.indexFailed')) }}</p>
+              <p class="mt-2 text-xs text-danger-text">{{ i18n.error(doc.errorCode, doc.errorParams, doc.error ?? i18n.t('sidebar.indexFailed')) }}</p>
             }
             @default {
-              <p class="mt-1 text-xs text-ink-muted">
-                {{ i18n.t('sidebar.pages', { n: doc.pages }) }} · {{ i18n.t('sidebar.passages', { n: doc.chunkCount }) }} ·
-                {{ formatSize(doc.sizeBytes) }} · {{ doc.uploadedAt | date: 'mediumDate' : undefined : i18n.lang() }}
+              <p class="mt-2 flex items-center gap-2 font-mono text-[10px] tracking-wide text-ink-muted">
+                <span class="size-1.5 shrink-0 rounded-full bg-success"></span>
+                <span>
+                  {{ i18n.t('sidebar.pages', { n: doc.pages }) }} · {{ i18n.t('sidebar.passages', { n: doc.chunkCount }) }} ·
+                  {{ formatSize(doc.sizeBytes) }} · {{ doc.uploadedAt | date: 'MMM d' : undefined : i18n.lang() }}
+                </span>
               </p>
             }
           }
@@ -114,4 +141,11 @@
       }
     </ul>
   </div>
+
+  @if (api.model(); as model) {
+    <div class="flex items-center gap-2 border-t border-night-700 pt-3 font-mono text-[10px] tracking-wide text-ink-subtle">
+      <span class="size-1.5 shrink-0 bg-success"></span>
+      <span class="truncate">{{ model }} · e5-small · BM25+RRF</span>
+    </div>
+  }
 </div>

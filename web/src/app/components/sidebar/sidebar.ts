@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, ElementRef, inject, signal, viewChild } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { ApiService } from '../../api.service';
 import { I18n } from '../../i18n';
@@ -17,6 +17,9 @@ export class Sidebar {
   protected readonly dragOver = signal(false);
   protected readonly error = signal<string | null>(null);
   protected readonly deleting = signal<string | null>(null);
+  /** Files refused during the last upload batch, shown together in a dialog. */
+  protected readonly uploadErrors = signal<{ file: string; message: string }[]>([]);
+  private readonly uploadDialog = viewChild<ElementRef<HTMLDialogElement>>('uploadDialog');
 
   constructor() {
     const unreachable = () => this.error.set(this.i18n.t('sidebar.unreachable'));
@@ -46,11 +49,11 @@ export class Sidebar {
   /** Sends files one by one; indexing itself continues server-side and shows up as document status. */
   private async uploadAll(files: File[]): Promise<void> {
     if (files.length === 0) return;
-    const errors: string[] = [];
+    const errors: { file: string; message: string }[] = [];
     this.error.set(null);
     for (const file of files) {
       if (!file.name.toLowerCase().endsWith('.pdf')) {
-        errors.push(this.i18n.t('sidebar.onlyPdf', { name: file.name }));
+        errors.push({ file: file.name, message: this.i18n.t('sidebar.onlyPdf') });
         continue;
       }
       this.uploading.set(file.name);
@@ -60,11 +63,22 @@ export class Sidebar {
         const body = (err as { error?: { error?: string; code?: string; params?: Record<string, string | number> } })
           ?.error;
         const message = this.i18n.error(body?.code, body?.params, body?.error ?? this.i18n.t('sidebar.uploadFailed'));
-        errors.push(`"${file.name}": ${message}`);
+        errors.push({ file: file.name, message });
       }
     }
     this.uploading.set(null);
-    this.error.set(errors.length ? errors.join('\n') : null);
+    this.uploadErrors.set(errors);
+    // Native modal dialog: focus trap, Escape to close and top-layer rendering for free.
+    if (errors.length) this.uploadDialog()?.nativeElement.showModal();
+  }
+
+  protected closeUploadDialog(): void {
+    this.uploadDialog()?.nativeElement.close();
+  }
+
+  /** A click on the backdrop lands on the <dialog> itself, not on its content. */
+  protected onDialogClick(event: MouseEvent): void {
+    if (event.target === event.currentTarget) this.closeUploadDialog();
   }
 
   protected percent(doc: DocumentMeta): number {

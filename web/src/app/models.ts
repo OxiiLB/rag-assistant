@@ -50,6 +50,16 @@ export type Segment =
   | { kind: 'bold'; text: string }
   | { kind: 'cite'; index: number };
 
+/** A line-level piece of an assistant answer, each holding inline segments. */
+export interface Block {
+  kind: 'paragraph' | 'heading' | 'list';
+  /** One entry per list item; paragraphs and headings have exactly one. */
+  items: Segment[][];
+  ordered?: boolean;
+  /** First number of an ordered list, which may resume after a paragraph. */
+  start?: number;
+}
+
 export type ChatEvent =
   | { type: 'sources'; sources: SourceRef[] }
   | { type: 'delta'; text: string }

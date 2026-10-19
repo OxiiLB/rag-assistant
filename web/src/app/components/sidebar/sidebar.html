@@ -158,6 +158,56 @@
     </ul>
   </div>
 
+  <!-- Upload errors: one row per refused file -->
+  <dialog
+    #uploadDialog
+    class="m-auto w-[min(440px,calc(100vw-2rem))] rounded-2xl border border-night-600 bg-night-900 p-0 text-ink shadow-2xl backdrop:bg-night-950/70 backdrop:backdrop-blur-sm"
+    aria-labelledby="upload-dialog-title"
+    (click)="onDialogClick($event)"
+    (close)="uploadErrors.set([])"
+  >
+    <div class="flex items-start gap-3 border-b border-night-700 px-5 py-4">
+      <span class="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-danger/10 text-danger">
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.3 3.9L2.4 18a2 2 0 001.7 3h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z" />
+        </svg>
+      </span>
+      <div class="min-w-0 flex-1">
+        <h2 id="upload-dialog-title" class="text-sm font-semibold text-ink">
+          {{ i18n.t('upload.title', { n: uploadErrors().length }) }}
+        </h2>
+        <p class="mt-0.5 text-xs text-ink-muted">{{ i18n.t('upload.body') }}</p>
+      </div>
+      <button
+        type="button"
+        class="rounded p-1 text-ink-subtle hover:bg-night-800 hover:text-ink"
+        [title]="i18n.t('source.close')"
+        (click)="closeUploadDialog()"
+      >
+        <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+          <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18" />
+        </svg>
+      </button>
+    </div>
+    <ul class="max-h-[50vh] divide-y divide-night-700 overflow-y-auto px-5">
+      @for (item of uploadErrors(); track $index) {
+        <li class="py-3">
+          <p class="text-sm font-medium break-words text-ink">{{ item.file }}</p>
+          <p class="mt-0.5 text-xs text-danger-text">{{ item.message }}</p>
+        </li>
+      }
+    </ul>
+    <div class="flex justify-end border-t border-night-700 px-5 py-3">
+      <button
+        type="button"
+        class="h-9 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink hover:bg-accent-strong"
+        (click)="closeUploadDialog()"
+      >
+        {{ i18n.t('upload.ok') }}
+      </button>
+    </div>
+  </dialog>
+
   @if (api.model(); as model) {
     <div class="flex items-center gap-2 border-t border-night-700 pt-3 font-mono text-[10px] tracking-wide text-ink-subtle">
       <span class="size-1.5 shrink-0 bg-success"></span>

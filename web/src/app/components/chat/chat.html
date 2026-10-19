@@ -79,20 +79,33 @@
                   class="rounded-2xl rounded-bl-sm border border-night-700 bg-night-800 px-4 py-3 text-[15px] leading-relaxed text-ink"
                 >
                   @if (message.content) {
-                    <!-- Segments are kept tight against their tags: the container is
-                         pre-wrap, so any stray template whitespace would show up. -->
-                    <span class="whitespace-pre-wrap">@for (segment of segments(message); track $index) {
-                        @switch (segment.kind) {
-                          @case ('bold') {<strong class="font-semibold text-white">{{ segment.text }}</strong>}
-                          @case ('cite') {<button
-                              type="button"
-                              class="cite"
-                              [title]="i18n.t('chat.viewSource', { n: segment.index })"
-                              (click)="openCitation(message, segment.index)"
-                            >{{ segment.index }}</button>}
-                          @case ('text') {<span>{{ segment.text }}</span>}
+                    <div class="flex flex-col gap-2.5">
+                      @for (block of blocks(message); track $index) {
+                        @switch (block.kind) {
+                          @case ('heading') {
+                            <h4 class="text-[15px] font-semibold text-white"><ng-container *ngTemplateOutlet="inline; context: { $implicit: block.items[0], message }" /></h4>
+                          }
+                          @case ('list') {
+                            @if (block.ordered) {
+                              <ol class="flex list-decimal flex-col gap-1 pl-5 marker:text-accent" [attr.start]="block.start ?? null">
+                                @for (item of block.items; track $index) {
+                                  <li class="pl-1"><ng-container *ngTemplateOutlet="inline; context: { $implicit: item, message }" /></li>
+                                }
+                              </ol>
+                            } @else {
+                              <ul class="flex list-disc flex-col gap-1 pl-5 marker:text-accent">
+                                @for (item of block.items; track $index) {
+                                  <li class="pl-1"><ng-container *ngTemplateOutlet="inline; context: { $implicit: item, message }" /></li>
+                                }
+                              </ul>
+                            }
+                          }
+                          @default {
+                            <p class="whitespace-pre-wrap"><ng-container *ngTemplateOutlet="inline; context: { $implicit: block.items[0], message }" /></p>
+                          }
                         }
-                      }</span>
+                      }
+                    </div>
                   } @else if (message.streaming) {
                     <span class="inline-flex items-center gap-1.5 py-1.5">
                       <span class="size-1.5 animate-pulse bg-accent [animation-delay:0ms]"></span>
@@ -110,8 +123,8 @@
                   }
                 </div>
 
-                @if (citedSources(message).length > 0 && !message.streaming) {
-                  <div class="mt-2 flex flex-wrap gap-1.5">
+                @if (!message.streaming && message.content) {
+                  <div class="mt-2 flex flex-wrap items-center gap-1.5">
                     @for (source of citedSources(message); track source.index) {
                       <button
                         class="inline-flex items-center gap-1.5 rounded-full border bg-night-800 px-2.5 py-1 font-mono text-xs text-ink-muted hover:border-cite hover:text-ink"
@@ -123,6 +136,23 @@
                         <span class="text-ink-subtle">p.{{ source.page }}</span>
                       </button>
                     }
+                    <button
+                      type="button"
+                      class="copy ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-mono text-xs text-ink-subtle hover:bg-night-800 hover:text-ink"
+                      (click)="copy(message, $index)"
+                    >
+                      @if (copied() === $index) {
+                        <svg class="size-3.5 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                        {{ i18n.t('chat.copied') }}
+                      } @else {
+                        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                          <path stroke-linecap="round" stroke-linejoin="round" d="M8 8V5a1 1 0 011-1h10a1 1 0 011 1v10a1 1 0 01-1 1h-3M5 8h10a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V9a1 1 0 011-1z" />
+                        </svg>
+                        {{ i18n.t('chat.copy') }}
+                      }
+                    </button>
                   </div>
                 }
               </div>
@@ -135,36 +165,50 @@
     <!-- Composer: the action sits inside the field -->
     <div class="px-6 pt-4 pb-5">
       <div
-        class="mx-auto flex max-w-[680px] items-end gap-3 rounded-2xl border border-night-600 bg-night-800 py-2 pr-2 pl-4 transition-shadow focus-within:border-accent focus-within:shadow-[0_0_0_4px_rgb(236_234_203/0.14)]"
+        class="mx-auto flex max-w-[680px] rounded-2xl border border-night-600 bg-night-800 py-2 pr-1 pl-4 transition-shadow focus-within:border-accent focus-within:shadow-[0_0_0_4px_rgb(236_234_203/0.14)]"
       >
-        <textarea
-          class="max-h-40 min-h-10 flex-1 resize-none bg-transparent py-2.5 text-sm text-ink placeholder:text-ink-subtle focus:outline-none disabled:opacity-60"
-          rows="1"
-          [placeholder]="i18n.t('chat.placeholder')"
-          [(ngModel)]="draft"
-          (keydown)="onKeydown($event)"
-          [disabled]="busy()"
-        ></textarea>
-        @if (busy()) {
-          <button
-            class="flex h-10 items-center gap-2 rounded-lg border border-night-600 px-4 text-sm font-medium text-ink hover:bg-night-750"
-            (click)="stop()"
-          >
-            <span class="size-2.5 bg-ink-muted"></span>
-            {{ i18n.t('chat.stop') }}
-          </button>
-        } @else {
-          <button
-            class="flex h-10 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-40"
-            [disabled]="!draft.trim() || api.scopeCount() === 0"
-            (click)="send()"
-          >
-            {{ i18n.t('chat.send') }}
-            <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5m0 0l-6 6m6-6l6 6" />
-            </svg>
-          </button>
-        }
+        <!-- The text and the button scroll together, so the scrollbar runs along the
+             box's right edge, past the button. The scroller is not the flex row itself:
+             a flex line is clamped to the container's max-height, so "bottom" would mean
+             40vh down instead of the end of the text. The inner row grows with the text,
+             and the sticky button stays on the visible bottom edge. -->
+        <div
+          #composerScroll
+          class="max-h-[40vh] min-w-0 flex-1 overflow-y-auto pr-1 [scrollbar-color:var(--color-night-600)_transparent] [scrollbar-width:thin]"
+        >
+          <div class="flex gap-3">
+            <textarea
+              #composer
+              class="min-h-10 flex-1 resize-none overflow-hidden bg-transparent py-2.5 text-sm leading-relaxed text-ink placeholder:text-ink-subtle focus:outline-none disabled:opacity-60"
+              rows="1"
+              [placeholder]="i18n.t('chat.placeholder')"
+              [(ngModel)]="draft"
+              (input)="autoGrow()"
+              (keydown)="onKeydown($event)"
+              [disabled]="busy()"
+            ></textarea>
+            @if (busy()) {
+              <button
+                class="sticky bottom-0 flex h-10 shrink-0 items-center gap-2 self-end rounded-lg border border-night-600 bg-night-800 px-4 text-sm font-medium text-ink hover:bg-night-750"
+                (click)="stop()"
+              >
+                <span class="size-2.5 bg-ink-muted"></span>
+                {{ i18n.t('chat.stop') }}
+              </button>
+            } @else {
+              <button
+                class="sticky bottom-0 flex h-10 shrink-0 items-center gap-2 self-end rounded-lg bg-accent px-4 text-sm font-medium text-accent-ink hover:bg-accent-strong disabled:cursor-not-allowed disabled:opacity-40"
+                [disabled]="!draft.trim() || api.scopeCount() === 0"
+                (click)="send()"
+              >
+                {{ i18n.t('chat.send') }}
+                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5m0 0l-6 6m6-6l6 6" />
+                </svg>
+              </button>
+            }
+          </div>
+        </div>
       </div>
       @if (api.readyCount() > 0 && api.scopeCount() === 0) {
         <p class="mt-2.5 text-center font-mono text-[10px] tracking-wide text-accent">{{ i18n.t('chat.noScope') }}</p>
@@ -219,3 +263,8 @@
     </aside>
   }
 </div>
+
+<!-- Inline segments, kept tight against their tags: paragraphs are pre-wrap, so stray
+     template whitespace would show. Do not let a formatter expand this. -->
+<!-- prettier-ignore -->
+<ng-template #inline let-segments let-message="message">@for (segment of segments; track $index) {@switch (segment.kind) {@case ('bold') {<strong class="font-semibold text-white">{{ segment.text }}</strong>}@case ('cite') {<button type="button" class="cite" [title]="i18n.t('chat.viewSource', { n: segment.index })" (click)="openCitation(message, segment.index)">{{ segment.index }}</button>}@default {<span>{{ segment.text }}</span>}}}</ng-template>

@@ -58,6 +58,8 @@ export interface Block {
   ordered?: boolean;
   /** First number of an ordered list, which may resume after a paragraph. */
   start?: number;
+  /** Nested list under each item (lists only, one level deep). */
+  children?: (Block | undefined)[];
 }
 
 export type ChatEvent =

@@ -132,6 +132,31 @@ describe('Chat Markdown rendering', () => {
     expect(root.querySelectorAll('ul > li').length).toBe(3);
   });
 
+  it('nests an indented sub-list under its item without breaking the numbering', () => {
+    const root = render('1. Step A\n   - detail\n   - more\n2. Step B');
+    const ol = root.querySelectorAll('ol');
+    expect(ol.length).toBe(1);
+    expect(ol[0]!.querySelectorAll(':scope > li').length).toBe(2);
+    expect(ol[0]!.querySelectorAll(':scope > li:first-child ul > li').length).toBe(2);
+  });
+
+  it('keeps a uniformly indented list flat', () => {
+    const root = render('  - a\n  - b');
+    expect(root.querySelectorAll('ul').length).toBe(1);
+    expect(root.querySelectorAll('ul > li').length).toBe(2);
+  });
+
+  it('shows the streaming cursor right after the last character, inside the last block', () => {
+    (fixture.componentInstance as unknown as { messages: WritableSignal<UiMessage[]> }).messages.set([
+      { role: 'assistant', content: 'Intro\n- first\n- second', streaming: true },
+    ]);
+    fixture.detectChanges();
+    const root = fixture.nativeElement as HTMLElement;
+    const cursors = root.querySelectorAll('.align-text-bottom');
+    expect(cursors.length).toBe(1);
+    expect(cursors[0]!.closest('li')?.textContent).toContain('second');
+  });
+
   it('resumes an ordered list at its own number', () => {
     const root = render('3. Third\n4. Fourth');
     expect(root.querySelector('ol')?.getAttribute('start')).toBe('3');
@@ -147,5 +172,29 @@ describe('Chat Markdown rendering', () => {
     (root.querySelector('button.copy') as HTMLButtonElement).click();
     await fixture.whenStable();
     expect(written).toBe('Budget\n- Hosting: €20/month [1]\n\nSources:\n[1] report.pdf, p. 3');
+  });
+
+  it('keeps the blank line before a heading when copying', async () => {
+    let written = '';
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: (text: string) => ((written = text), Promise.resolve()) },
+    });
+    const root = render('Intro text.\n\n## Details\nMore');
+    (root.querySelector('button.copy') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    expect(written).toBe('Intro text.\n\nDetails\nMore');
+  });
+
+  it('tells the user when the clipboard refuses the copy', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: () => Promise.reject(new Error('denied')) },
+    });
+    const root = render('Answer');
+    (root.querySelector('button.copy') as HTMLButtonElement).click();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(root.querySelector('button.copy')?.textContent).toContain('Copy failed');
   });
 });

@@ -176,7 +176,9 @@
         <h2 id="upload-dialog-title" class="text-sm font-semibold text-ink">
           {{ i18n.t('upload.title', { n: uploadErrors().length }) }}
         </h2>
-        <p class="mt-0.5 text-xs text-ink-muted">{{ i18n.t('upload.body') }}</p>
+        @if (someUploaded()) {
+          <p class="mt-0.5 text-xs text-ink-muted">{{ i18n.t('upload.body') }}</p>
+        }
       </div>
       <button
         type="button"

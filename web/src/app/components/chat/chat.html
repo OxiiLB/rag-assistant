@@ -80,28 +80,16 @@
                 >
                   @if (message.content) {
                     <div class="flex flex-col gap-2.5">
-                      @for (block of blocks(message); track $index) {
+                      @for (block of blocks(message); track $index; let lastBlock = $last) {
                         @switch (block.kind) {
                           @case ('heading') {
-                            <h4 class="text-[15px] font-semibold text-white"><ng-container *ngTemplateOutlet="inline; context: { $implicit: block.items[0], message }" /></h4>
+                            <h4 class="text-[15px] font-semibold text-white"><ng-container *ngTemplateOutlet="inline; context: { $implicit: block.items[0], message, cursor: message.streaming && lastBlock }" /></h4>
                           }
                           @case ('list') {
-                            @if (block.ordered) {
-                              <ol class="flex list-decimal flex-col gap-1 pl-5 marker:text-accent" [attr.start]="block.start ?? null">
-                                @for (item of block.items; track $index) {
-                                  <li class="pl-1"><ng-container *ngTemplateOutlet="inline; context: { $implicit: item, message }" /></li>
-                                }
-                              </ol>
-                            } @else {
-                              <ul class="flex list-disc flex-col gap-1 pl-5 marker:text-accent">
-                                @for (item of block.items; track $index) {
-                                  <li class="pl-1"><ng-container *ngTemplateOutlet="inline; context: { $implicit: item, message }" /></li>
-                                }
-                              </ul>
-                            }
+                            <ng-container *ngTemplateOutlet="list; context: { $implicit: block, message, cursor: message.streaming && lastBlock }" />
                           }
                           @default {
-                            <p class="whitespace-pre-wrap"><ng-container *ngTemplateOutlet="inline; context: { $implicit: block.items[0], message }" /></p>
+                            <p class="whitespace-pre-wrap"><ng-container *ngTemplateOutlet="inline; context: { $implicit: block.items[0], message, cursor: message.streaming && lastBlock }" /></p>
                           }
                         }
                       }
@@ -112,9 +100,6 @@
                       <span class="size-1.5 animate-pulse bg-accent/60 [animation-delay:150ms]"></span>
                       <span class="size-1.5 animate-pulse bg-accent/30 [animation-delay:300ms]"></span>
                     </span>
-                  }
-                  @if (message.streaming && message.content) {
-                    <span class="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-accent align-text-bottom"></span>
                   }
                   @if (message.error) {
                     <div class="mt-2 rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger-text">
@@ -139,18 +124,24 @@
                     <button
                       type="button"
                       class="copy ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 font-mono text-xs text-ink-subtle hover:bg-night-800 hover:text-ink"
-                      (click)="copy(message, $index)"
+                      (click)="copy(message)"
                     >
-                      @if (copied() === $index) {
-                        <svg class="size-3.5 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                        {{ i18n.t('chat.copied') }}
-                      } @else {
-                        <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
-                          <path stroke-linecap="round" stroke-linejoin="round" d="M8 8V5a1 1 0 011-1h10a1 1 0 011 1v10a1 1 0 01-1 1h-3M5 8h10a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V9a1 1 0 011-1z" />
-                        </svg>
-                        {{ i18n.t('chat.copy') }}
+                      @switch (copyState(message)) {
+                        @case ('ok') {
+                          <svg class="size-3.5 text-success" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                          {{ i18n.t('chat.copied') }}
+                        }
+                        @case ('failed') {
+                          <span class="text-danger-text">{{ i18n.t('chat.copyFailed') }}</span>
+                        }
+                        @default {
+                          <svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M8 8V5a1 1 0 011-1h10a1 1 0 011 1v10a1 1 0 01-1 1h-3M5 8h10a1 1 0 011 1v10a1 1 0 01-1 1H5a1 1 0 01-1-1V9a1 1 0 011-1z" />
+                          </svg>
+                          {{ i18n.t('chat.copy') }}
+                        }
                       }
                     </button>
                   </div>
@@ -267,4 +258,34 @@
 <!-- Inline segments, kept tight against their tags: paragraphs are pre-wrap, so stray
      template whitespace would show. Do not let a formatter expand this. -->
 <!-- prettier-ignore -->
-<ng-template #inline let-segments let-message="message">@for (segment of segments; track $index) {@switch (segment.kind) {@case ('bold') {<strong class="font-semibold text-white">{{ segment.text }}</strong>}@case ('cite') {<button type="button" class="cite" [title]="i18n.t('chat.viewSource', { n: segment.index })" (click)="openCitation(message, segment.index)">{{ segment.index }}</button>}@default {<span>{{ segment.text }}</span>}}}</ng-template>
+<ng-template #inline let-segments let-message="message" let-cursor="cursor">@for (segment of segments; track $index) {@switch (segment.kind) {@case ('bold') {<strong class="font-semibold text-white">{{ segment.text }}</strong>}@case ('cite') {<button type="button" class="cite" [title]="i18n.t('chat.viewSource', { n: segment.index })" (click)="openCitation(message, segment.index)">{{ segment.index }}</button>}@default {<span>{{ segment.text }}</span>}}}@if (cursor) {<span class="ml-0.5 inline-block h-4 w-1.5 animate-pulse bg-accent align-text-bottom"></span>}</ng-template>
+
+<!-- A list block; a nested list renders through this same template under its item. -->
+<ng-template #list let-block let-message="message" let-cursor="cursor">
+  @if (block.ordered) {
+    <ol class="flex list-decimal flex-col gap-1 pl-5 marker:text-accent" [attr.start]="block.start ?? null">
+      @for (item of block.items; track $index; let i = $index, last = $last) {
+        <li class="pl-1">
+          <ng-container *ngTemplateOutlet="listItem; context: { $implicit: item, child: block.children?.[i], message, cursor: cursor && last }" />
+        </li>
+      }
+    </ol>
+  } @else {
+    <ul class="flex list-disc flex-col gap-1 pl-5 marker:text-accent">
+      @for (item of block.items; track $index; let i = $index, last = $last) {
+        <li class="pl-1">
+          <ng-container *ngTemplateOutlet="listItem; context: { $implicit: item, child: block.children?.[i], message, cursor: cursor && last }" />
+        </li>
+      }
+    </ul>
+  }
+</ng-template>
+
+<ng-template #listItem let-item let-child="child" let-message="message" let-cursor="cursor">
+  <ng-container *ngTemplateOutlet="inline; context: { $implicit: item, message, cursor: cursor && !child }" />
+  @if (child) {
+    <div class="mt-1">
+      <ng-container *ngTemplateOutlet="list; context: { $implicit: child, message, cursor }" />
+    </div>
+  }
+</ng-template>

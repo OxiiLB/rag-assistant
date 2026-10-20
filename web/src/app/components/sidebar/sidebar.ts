@@ -19,6 +19,8 @@ export class Sidebar {
   protected readonly deleting = signal<string | null>(null);
   /** Files refused during the last upload batch, shown together in a dialog. */
   protected readonly uploadErrors = signal<{ file: string; message: string }[]>([]);
+  /** Whether some files of that batch were accepted, so the dialog can say the rest is fine. */
+  protected readonly someUploaded = signal(false);
   private readonly uploadDialog = viewChild<ElementRef<HTMLDialogElement>>('uploadDialog');
 
   constructor() {
@@ -50,6 +52,7 @@ export class Sidebar {
   private async uploadAll(files: File[]): Promise<void> {
     if (files.length === 0) return;
     const errors: { file: string; message: string }[] = [];
+    let uploaded = 0;
     this.error.set(null);
     for (const file of files) {
       if (!file.name.toLowerCase().endsWith('.pdf')) {
@@ -59,6 +62,7 @@ export class Sidebar {
       this.uploading.set(file.name);
       try {
         await this.api.uploadDocument(file);
+        uploaded++;
       } catch (err: unknown) {
         const body = (err as { error?: { error?: string; code?: string; params?: Record<string, string | number> } })
           ?.error;
@@ -68,6 +72,7 @@ export class Sidebar {
     }
     this.uploading.set(null);
     this.uploadErrors.set(errors);
+    this.someUploaded.set(uploaded > 0);
     // Native modal dialog: focus trap, Escape to close and top-layer rendering for free.
     if (errors.length) this.uploadDialog()?.nativeElement.showModal();
   }
